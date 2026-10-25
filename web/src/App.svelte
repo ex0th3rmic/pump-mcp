@@ -182,7 +182,6 @@
   .status .stars { color: var(--ac); margin-left: 2px; }
   .status .dim { color: var(--t3); }
   .bad { color: var(--err); }
-  }
 
   .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 36px; align-items: start; }
   h1 { font-size: 38px; margin: 0 0 12px; letter-spacing: -0.03em; font-weight: 700; line-height: 1.08; color: #fff; }

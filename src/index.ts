@@ -72,8 +72,9 @@ const DESCRIPTION = [
   "code; return only what the user needs. Official Developer API routes (users, callouts, posts,",
   "leaderboards, positions) are rate limited (2 rps, 50k/day) and need the operator's pf_live_ key;",
   "batch with the /users/batch and multi-id endpoints instead of looping. `/curve/{mint}` and `/rpc`",
-  "read chain state directly. `/trade/local` returns an unsigned transaction for the user's wallet to",
-  "sign. `/trade/lightning` moves real funds and only works when the operator configured it.",
+  "read chain state directly. `/trade` builds an unsigned buy, sell or create transaction with",
+  "pump.fun's official SDK for the user's wallet to sign; nothing moves until they sign.",
+  "`/metadata` pins a new coin's image and metadata to IPFS and returns the uri create needs.",
   "Present results as 'Data from pump.fun'.",
 ].join(" ");
 
@@ -109,7 +110,8 @@ Example execute body:
 
 - GET /curve/{mint}: bonding curve read straight from Solana. Price, market cap, graduation progress, reserves, buy/sell quotes (query buyAmount, sellTokens). No pump.fun key needed.
 - POST /rpc: allow-listed Solana JSON-RPC methods (getAccountInfo, getBalance, getTokenLargestAccounts, getTokenSupply, getSignaturesForAddress, getTransaction, simulateTransaction, sendTransaction, ...). Body: { method, params }.
-- POST /trade/local: returns an UNSIGNED transaction for the given wallet (PumpPortal Local API, 0.5% fee). Body: { publicKey, action: "buy"|"sell", mint, amount, denominatedInSol, slippage, priorityFee, pool: "auto" }.
+- POST /trade: builds an UNSIGNED transaction with pump.fun's official SDK from live chain state, for the given wallet to sign. Buy and sell route to the bonding curve, or to the PumpSwap pool once a coin has graduated. Body: { publicKey, action: "buy"|"sell"|"create", mint, amount, denominatedInSol, slippage, priorityFee, pool: "auto" }. Sell amounts can be a percentage such as "100%". Create takes tokenMetadata { name, symbol, uri } and no mint: the server generates the mint, signs with it once, and returns its address. (POST /trade/local is an alias.)
+- POST /metadata: pins a new coin's image (inline base64 data URL) and metadata JSON to IPFS; returns { uri } for create. Body: { name, symbol, description, image, website, twitter, telegram }.
 - Official pump.fun Developer API routes (users, following, posts, callouts, leaderboards, positions, trades): read-only social data. Available only when the operator has configured PUMP_API_KEY; otherwise they fail with NOT_CONFIGURED. Rate limited (2 rps, 50k/day).
 
 ## Rules
@@ -140,7 +142,8 @@ export function createHandler(deps: HandlerDeps = {}) {
         mode: modeOf(env),
         officialKey: Boolean(env.PUMP_API_KEY),
         rpc: Boolean(env.RPC_URL),
-        lightning: Boolean(env.PUMPPORTAL_API_KEY),
+        metadataUpload: Boolean(env.PINATA_JWT),
+        devBuyInCreate: Boolean(env.LOOKUP_TABLES && env.LOOKUP_TABLES.trim()),
         auth: Boolean(env.MCP_BEARER_TOKEN),
       });
     }

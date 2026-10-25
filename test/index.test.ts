@@ -21,7 +21,13 @@ describe("worker routes", () => {
     const hybrid = (await (await worker.fetch(new Request("https://x/health"), env({ PUMP_OPENAPI_URL: "https://docs.pump.fun/openapi.public.json" }), ctx)).json()) as Record<string, unknown>;
     expect(hybrid.mode).toBe("hybrid");
     expect(body.rpc).toBe(true);
-    expect(body.lightning).toBe(false);
+    expect(body.lightning).toBeUndefined(); // the custodial route is gone
+    expect(body.metadataUpload).toBe(false);
+    expect(body.devBuyInCreate).toBe(false);
+    const launch = (await (await worker.fetch(new Request("https://x/health"), env({ PINATA_JWT: "j", LOOKUP_TABLES: "84gxtAAWToZ6xep3wrWsx8TEoLB7EBS9VrKkV9CtMdJi" }), ctx)).json()) as Record<string, unknown>;
+    expect(launch.metadataUpload).toBe(true);
+    expect(launch.devBuyInCreate).toBe(true);
+    expect(JSON.stringify(launch)).not.toContain('"j"');
     expect(JSON.stringify(body)).not.toContain("api-key");
   });
 
@@ -29,8 +35,11 @@ describe("worker routes", () => {
     const res = await worker.fetch(new Request("https://x/openapi.json"), env(), ctx);
     const spec = (await res.json()) as { openapi: string; paths: Record<string, unknown> };
     expect(spec.openapi).toBe("3.1.0");
-    expect(Object.keys(spec.paths)).toContain("/trade/local");
-    expect(Object.keys(spec.paths)).toContain("/rpc");
+    expect(Object.keys(spec.paths)).toEqual(expect.arrayContaining(["/trade", "/trade/local", "/metadata", "/rpc"]));
+    expect(Object.keys(spec.paths)).not.toContain("/trade/lightning");
+    const paths = spec.paths as Record<string, { post?: { deprecated?: boolean; description?: string } }>;
+    expect(paths["/trade/local"]!.post!.deprecated).toBe(true);
+    expect(JSON.stringify(spec)).not.toMatch(/pumpportal/i);
   });
 
   test("/mcp requires the bearer token", async () => {

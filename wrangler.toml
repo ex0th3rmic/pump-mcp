@@ -21,22 +21,26 @@ directory = "./dist"
 binding = "ASSETS"
 
 # Plain vars. Secrets (never commit): `wrangler secret put MCP_BEARER_TOKEN` (required),
-# `RPC_URL` (keyed Helius URL, enables /rpc), `PUMPPORTAL_API_KEY` (enables /trade/lightning),
-# `PUMP_API_KEY` (official platform key once developers.pump.fun ships).
+# `RPC_URL` (keyed Helius URL; enables /curve, /rpc and /trade), `PUMP_API_KEY` (official platform key,
+# approval required), `PINATA_JWT` (enables POST /metadata).
 [vars]
 # Community mode upstreams (used while the official developer platform is not available).
 PUMP_FRONTEND_API_ORIGIN = "https://frontend-api-v3.pump.fun"
-PUMPPORTAL_ORIGIN = "https://pumpportal.fun"
 # Official pump.fun Developer API (docs.pump.fun). The public OpenAPI document is merged with the
 # community routes; its paths are forwarded to PUMP_API_ORIGIN with `Authorization: Bearer ${PUMP_API_KEY}`
 # (secret; a pf_live_ key from the console at https://developers.pump.fun, approval required).
 # Set PUMP_OPENAPI_URL = "" to serve the community routes only. Devnet: https://api-devnet.pump.fun/v1.
 PUMP_OPENAPI_URL = "https://docs.pump.fun/openapi.public.json"
 PUMP_API_ORIGIN = "https://api.pump.fun/v1"
-# JSON-RPC methods sandbox code may call through POST /rpc (comma separated).
+# Address lookup tables /trade may compile with (comma separated). A create with a dev buy needs one to
+# fit in a transaction. Make yours once with `bun run lookup-table --keypair <wallet.json> --yes`.
+LOOKUP_TABLES = ""
+# Gateway prefix for the IPFS links POST /metadata returns.
+IPFS_GATEWAY = "https://ipfs.io/ipfs/"
 # Coin whose bonding curve the web app shows on load (GET /api/showcase, public, cached 20s). Pick any
 # live pump.fun mint; leave empty to show a static illustration instead.
 SHOWCASE_MINT = "GPieo9s4rz6ungQnsqyiUrznqDypMgrNXmFSDM2vpump"
+# JSON-RPC methods sandbox code may call through POST /rpc (comma separated).
 RPC_ALLOWED_METHODS = "getAccountInfo,getBalance,getTokenAccountBalance,getTokenAccountsByOwner,getTokenLargestAccounts,getTokenSupply,getLatestBlockhash,getSignaturesForAddress,getTransaction,getMultipleAccounts,simulateTransaction,sendTransaction,getSignatureStatuses"
 
 # Optional usage counts (page views, MCP calls by tool name). Query with SQL in the dashboard or API;

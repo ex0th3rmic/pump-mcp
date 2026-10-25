@@ -3,6 +3,10 @@ import type { Env } from "../src/env";
 import { handleRequest, UpstreamError, type FetchLike } from "../src/upstreams";
 import { matchOfficialPath, mergeSpecs, prepareOfficialSpec } from "../src/official";
 import { communitySpec } from "../src/spec";
+import { cassette } from "./support/rpc-cassette";
+
+const LIVE_MINT = "GPieo9s4rz6ungQnsqyiUrznqDypMgrNXmFSDM2vpump";
+const BUYER = "CttCkrcNtFfVsGSChFpYTJpYwkxJcyfigu91a7io6EzS";
 
 const MINT = "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump";
 const WALLET = "CttCkrcNtFfVsGSChFpYTJpYwkxJcyfigu91a7io6EzS";
@@ -26,7 +30,6 @@ const baseEnv = (): Env =>
     LOADER: {} as WorkerLoader,
     MCP_BEARER_TOKEN: "t",
     PUMP_FRONTEND_API_ORIGIN: "https://frontend.test",
-    PUMPPORTAL_ORIGIN: "https://portal.test/",
     RPC_ALLOWED_METHODS: "getAccountInfo, sendTransaction",
   }) as Env;
 
@@ -68,57 +71,69 @@ describe("community mode", () => {
     await expect(handleRequest({ method: "GET", path: "/sol-price" }, baseEnv(), { fetchImpl })).rejects.toMatchObject({ code: "UPSTREAM", status: 403 });
   });
 
-  test("POST /trade/local normalizes the body and returns the transaction bytes as base64", async () => {
-    const bytes = new Uint8Array([1, 2, 3, 250, 251, 252]);
-    const { fetchImpl, calls } = mockFetch(() => new Response(bytes, { status: 200, headers: { "content-type": "application/octet-stream" } }));
-    const out = (await handleRequest(
-      {
-        method: "POST",
-        path: "/trade/local",
-        body: { publicKey: WALLET, action: "buy", mint: MINT, amount: 0.01, denominatedInSol: true, slippage: 10, priorityFee: 0.0005 },
-      },
-      baseEnv(),
-      { fetchImpl },
-    )) as { transaction: string; encoding: string; bytes: number };
+  test("POST /trade builds an unsigned transaction with the official SDK from live chain state", async () => {
+    const tape = cassette("tx-mainnet");
+    const env = { ...baseEnv(), RPC_URL: "https://rpc.invalid" };
+    const body = { publicKey: BUYER, action: "buy", mint: LIVE_MINT, amount: 0.05, denominatedInSol: true, slippage: 10, priorityFee: 0.0001 };
+    const out = (await handleRequest({ method: "POST", path: "/trade", body }, env, { fetchImpl: tape.fetchImpl })) as { venue: string; encoding: string; transaction: string };
+    expect(out.venue).toBe("pump");
     expect(out.encoding).toBe("base64");
-    expect(out.bytes).toBe(6);
-    expect(Array.from(Uint8Array.from(atob(out.transaction), (c) => c.charCodeAt(0)))).toEqual([1, 2, 3, 250, 251, 252]);
-    expect(calls[0]!.url).toBe("https://portal.test/api/trade-local");
-    const sent = JSON.parse(calls[0]!.init!.body as string);
-    expect(sent).toEqual({
-      action: "buy",
-      mint: MINT,
-      amount: 0.01,
-      denominatedInSol: "true",
-      slippage: 10,
-      priorityFee: 0.0005,
-      pool: "auto",
-      publicKey: WALLET,
-    });
+    // /trade/local is kept as an alias so code written against the old route keeps working
+    const alias = (await handleRequest({ method: "POST", path: "/trade/local", body }, env, { fetchImpl: tape.fetchImpl })) as { venue: string };
+    expect(alias.venue).toBe("pump");
   });
 
-  test("POST /trade/local validates required fields and create metadata", async () => {
+  test("POST /trade maps builder errors to typed upstream errors and needs RPC_URL", async () => {
     const { fetchImpl, calls } = mockFetch(() => jsonRes({}));
-    const base = { publicKey: WALLET, mint: MINT, amount: 0.1, denominatedInSol: true, slippage: 10, priorityFee: 0.0005 };
-    await expect(handleRequest({ method: "POST", path: "/trade/local", body: { ...base, action: "burn" } }, baseEnv(), { fetchImpl })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    await expect(handleRequest({ method: "POST", path: "/trade/local", body: { ...base, action: "create" } }, baseEnv(), { fetchImpl })).rejects.toMatchObject({ code: "BAD_REQUEST" });
-    const { publicKey: _pk, ...noKey } = base;
-    await expect(handleRequest({ method: "POST", path: "/trade/local", body: { ...noKey, action: "buy" } }, baseEnv(), { fetchImpl })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    const body = { publicKey: WALLET, action: "burn", mint: MINT, amount: 0.1, denominatedInSol: true, slippage: 10, priorityFee: 0.0005 };
+    await expect(handleRequest({ method: "POST", path: "/trade", body }, { ...baseEnv(), RPC_URL: "https://rpc.invalid" }, { fetchImpl })).rejects.toMatchObject({ name: "UpstreamError", code: "BAD_REQUEST" });
+    await expect(handleRequest({ method: "POST", path: "/trade", body: { ...body, action: "buy" } }, baseEnv(), { fetchImpl })).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
     expect(calls.length).toBe(0);
   });
 
-  test("POST /trade/lightning is NOT_CONFIGURED without a key and attaches the key when set", async () => {
+  test("the custodial /trade/lightning route is gone", async () => {
     const { fetchImpl, calls } = mockFetch(() => jsonRes({ signature: "sig" }));
-    const body = { action: "sell", mint: MINT, amount: "100%", denominatedInSol: false, slippage: 10, priorityFee: 0.0005, pool: "pump" };
-    await expect(handleRequest({ method: "POST", path: "/trade/lightning", body }, baseEnv(), { fetchImpl })).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
-    const out = await handleRequest({ method: "POST", path: "/trade/lightning", body }, { ...baseEnv(), PUMPPORTAL_API_KEY: "secret-key" }, { fetchImpl });
-    expect(out).toEqual({ signature: "sig" });
-    const u = new URL(calls[0]!.url);
-    expect(u.pathname).toBe("/api/trade");
-    expect(u.searchParams.get("api-key")).toBe("secret-key");
-    const sent = JSON.parse(calls[0]!.init!.body as string);
-    expect(sent.denominatedInSol).toBe("false");
-    expect(sent.publicKey).toBeUndefined();
+    const body = { action: "sell", mint: MINT, amount: "100%", denominatedInSol: false, slippage: 10, priorityFee: 0.0005 };
+    await expect(handleRequest({ method: "POST", path: "/trade/lightning", body }, { ...baseEnv(), PUMPPORTAL_API_KEY: "k" } as Env, { fetchImpl })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(calls.length).toBe(0);
+  });
+
+  test("POST /metadata pins the image, then the metadata JSON, and returns the uri for create", async () => {
+    let n = 0;
+    const { fetchImpl, calls } = mockFetch(() => jsonRes({ IpfsHash: n++ === 0 ? "bafyimage" : "bafymeta" }));
+    const png = "data:image/png;base64," + btoa(String.fromCharCode(137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3));
+    const out = (await handleRequest(
+      { method: "POST", path: "/metadata", body: { name: "ex0therm", symbol: "EX0", description: "releasing energy", image: png, website: "https://ex0therm.dev", twitter: "https://x.com/ex0therm" } },
+      { ...baseEnv(), PINATA_JWT: "jwt-secret" },
+      { fetchImpl },
+    )) as { uri: string; image: string; metadata: Record<string, unknown> };
+    expect(calls.map((c) => c.url)).toEqual(["https://api.pinata.cloud/pinning/pinFileToIPFS", "https://api.pinata.cloud/pinning/pinJSONToIPFS"]);
+    for (const c of calls) expect(new Headers(c.init!.headers).get("authorization")).toBe("Bearer jwt-secret");
+    expect(calls[0]!.init!.body).toBeInstanceOf(FormData);
+    const pinned = JSON.parse(calls[1]!.init!.body as string);
+    expect(pinned.pinataContent).toEqual({ name: "ex0therm", symbol: "EX0", description: "releasing energy", image: "https://ipfs.io/ipfs/bafyimage", showName: true, website: "https://ex0therm.dev", twitter: "https://x.com/ex0therm" });
+    expect(out.uri).toBe("https://ipfs.io/ipfs/bafymeta");
+    expect(out.image).toBe("https://ipfs.io/ipfs/bafyimage");
+    expect(JSON.stringify(out)).not.toContain("jwt-secret");
+  });
+
+  test("POST /metadata is NOT_CONFIGURED without PINATA_JWT and validates before uploading", async () => {
+    const { fetchImpl, calls } = mockFetch(() => jsonRes({ IpfsHash: "x" }));
+    const png = "data:image/png;base64," + btoa("png");
+    const ok = { name: "ex0therm", symbol: "EX0", image: png };
+    await expect(handleRequest({ method: "POST", path: "/metadata", body: ok }, baseEnv(), { fetchImpl })).rejects.toMatchObject({ code: "NOT_CONFIGURED" });
+    const env = { ...baseEnv(), PINATA_JWT: "j" };
+    for (const body of [
+      { ...ok, name: "" },
+      { ...ok, symbol: "WAYTOOLONGSYMBOL" },
+      { ...ok, image: "https://example.com/a.png" }, // the server never fetches URLs for you
+      { ...ok, image: "data:text/html;base64," + btoa("<script>") },
+      { ...ok, image: "data:image/png;base64," + "A".repeat(3_000_000) },
+      { ...ok, website: "javascript:alert(1)" },
+    ]) {
+      await expect(handleRequest({ method: "POST", path: "/metadata", body }, env, { fetchImpl })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    }
+    expect(calls.length).toBe(0);
   });
 
   test("POST /rpc enforces the method allow-list and unwraps JSON-RPC", async () => {
@@ -198,7 +213,7 @@ describe("hybrid mode (official spec merged)", () => {
     const merged = mergeSpecs({ ...fakeOfficial, components: { schemas: { A: {} } } }, communitySpec) as Record<string, any>;
     expect(merged.servers[0].url).toBe("https://api.pump.fun/v1");
     expect(merged.components.schemas.A).toEqual({});
-    expect(Object.keys(merged.paths)).toEqual(expect.arrayContaining(["/users/{id}", "/curve/{mint}", "/trade/local", "/rpc"]));
+    expect(Object.keys(merged.paths)).toEqual(expect.arrayContaining(["/users/{id}", "/curve/{mint}", "/trade", "/metadata", "/rpc"]));
     expect(merged.paths["/curve/{mint}"].get.security).toEqual([]);
     expect(merged.paths["/users/{id}"].get.security).toBeUndefined();
     expect(merged.tags.map((t: any) => t.name)).toEqual(expect.arrayContaining(["profiles.read", "chain", "trading"]));

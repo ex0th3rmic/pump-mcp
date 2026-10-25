@@ -25,11 +25,12 @@ and the advisory is published with credit unless you ask otherwise.
   Worker being usable as an open proxy.
 - Auth bypass on `/mcp`, or anything that makes the unauthenticated routes (`/health`, `/openapi.json`,
   `/llms.txt`, `/api/showcase`) do more than they document.
-- Transaction building that produces something other than what the request described.
+- Transaction building that produces something other than what the request described, or any path by
+  which a server-generated mint keypair could leave the Worker.
 
 ## Out of scope
 
-- The upstream services themselves (pump.fun, Solana RPC providers, PumpPortal, Cloudflare). Report
+- The upstream services themselves (pump.fun and its SDK, Solana RPC providers, Pinata, Cloudflare). Report
   those to their owners.
 - Rate limits and quota exhaustion on a deployment you run yourself.
 - Findings that need a leaked bearer token; rotate it with `wrangler secret put MCP_BEARER_TOKEN`.

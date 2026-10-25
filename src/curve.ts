@@ -234,7 +234,7 @@ export function describeCurve(mint: string, address: string, c: BondingCurve, op
       : quote.decimals === null
         ? `Quote asset ${quote.mint} has unknown decimals: only raw units are reported, no price or quotes.`
         : c.isMayhemMode
-          ? `Mayhem-mode coin priced in ${quote.symbol}: the program adjusts virtual params over time, so buy/sell quotes are not computed here. Use /trade/local with slippage, or simulate via /rpc.`
+          ? `Mayhem-mode coin priced in ${quote.symbol}: the program adjusts virtual params over time, so buy/sell quotes are not computed here. Use /trade with slippage, or simulate via /rpc.`
           : `Prices and amounts are in ${quote.symbol}. Quotes include the 1% protocol fee only; creator fee and slippage are extra.`,
   };
   if (quotable && opts.buyAmount !== undefined && Number.isFinite(opts.buyAmount) && opts.buyAmount > 0) {

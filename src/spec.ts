@@ -5,7 +5,8 @@
  * not launched. Each path is routed to a real upstream by `src/upstreams.ts`:
  *   - /coins, /trades, /candlesticks, /replies, /balances, /sol-price -> pump.fun frontend API
  *     (unofficial, undocumented, can change without notice; the same API the website uses)
- *   - /trade/local, /trade/lightning                                  -> PumpPortal
+ *   - /trade (alias /trade/local)                                     -> pump.fun's official SDK, built here from chain state
+ *   - /metadata                                                       -> IPFS pinning (PINATA_JWT)
  *   - /rpc                                                            -> Solana JSON-RPC (RPC_URL)
  *
  * Nothing here is secret: the sandbox can read this document and every response.
@@ -92,40 +93,82 @@ const trade = {
 
 const tradeBody = {
   type: "object",
-  required: ["action", "mint", "amount", "denominatedInSol", "slippage", "priorityFee"],
+  required: ["publicKey", "action", "amount", "denominatedInSol", "slippage"],
   properties: {
+    publicKey: { type: "string", description: "Wallet that signs and pays. For create, also the coin's creator (creator fees go to it)." },
     action: { type: "string", enum: ["buy", "sell", "create"] },
     mint: {
       type: "string",
       description:
-        "Token mint. For `create`, the base58 public key of a NEW mint keypair you generated and will co-sign with.",
+        "Token mint. Required for buy and sell. For create, leave it out and the server generates a fresh mint, signs with it once, and returns its address; or pass a mint you generated yourself (e.g. a vanity ...pump address) and co-sign with it.",
     },
     amount: {
       oneOf: [{ type: "number" }, { type: "string" }],
       description:
-        "SOL (denominatedInSol=true) or token amount. Sells accept a percentage string such as \"100%\". For `create` this is the initial dev buy in SOL.",
+        "buy: quote asset to spend (denominatedInSol=true) or tokens to receive. sell: tokens, or a percentage string such as \"100%\" of the wallet's balance. create: the dev buy in SOL (0 for none).",
     },
-    denominatedInSol: { type: "boolean" },
-    slippage: { type: "number", description: "Max slippage in percent, e.g. 10" },
-    priorityFee: { type: "number", description: "Priority fee in SOL, e.g. 0.0005" },
+    denominatedInSol: { type: "boolean", description: "true when amount is in the quote asset (SOL for classic coins). Must be false for sell." },
+    slippage: { type: "number", description: "Max slippage in percent, 0 to 99, e.g. 10" },
+    priorityFee: { type: "number", description: "Priority fee in SOL, 0 to 0.1, e.g. 0.0001" },
     pool: {
       type: "string",
-      enum: ["pump", "pump-amm", "raydium", "raydium-cpmm", "launchlab", "bonk", "auto"],
+      enum: ["auto", "pump", "pump-amm"],
       default: "auto",
-      description: "Which venue to route to. `auto` picks the venue the mint currently trades on.",
+      description: "auto picks the bonding curve while the coin is on it and its PumpSwap pool after graduation.",
     },
     tokenMetadata: {
       type: "object",
-      description: "Required when action=create.",
+      description: "Required for create.",
       required: ["name", "symbol", "uri"],
       properties: {
-        name: { type: "string" },
-        symbol: { type: "string" },
-        uri: { type: "string", description: "Metadata JSON URI (IPFS)." },
+        name: { type: "string", description: "1 to 32 characters." },
+        symbol: { type: "string", description: "1 to 10 characters." },
+        uri: { type: "string", description: "Metadata JSON URI: the `uri` from POST /metadata, or your own https:// or ipfs:// link." },
       },
     },
+    holderReward: { type: "boolean", description: "create only: route creator fees to holders instead of the creator. Set at creation." },
   },
 };
+
+const tradeResult = {
+  type: "object",
+  properties: {
+    transaction: { type: "string", description: "base64 VersionedTransaction (v0), unsigned by the wallet." },
+    encoding: { type: "string", enum: ["base64"] },
+    bytes: { type: "integer" },
+    action: { type: "string" },
+    venue: { type: "string", enum: ["pump", "pump-amm"], description: "pump = bonding curve; pump-amm = PumpSwap pool after graduation." },
+    mint: { type: "string", description: "The coin's mint. For create, the new coin's address." },
+    quote: {
+      type: "object",
+      description: "Price at build time in whole units; the slippage bound is enforced on-chain.",
+      properties: {
+        quoteSymbol: { type: "string" },
+        quoteIn: { oneOf: [{ type: "number" }, { type: "string" }] },
+        tokensOut: { type: "string" },
+        tokensIn: { type: "string" },
+        quoteOut: { type: "string" },
+        slippagePct: { type: "number" },
+      },
+    },
+    requiredSigners: { type: "array", items: { type: "string" } },
+    signedBy: { type: "array", items: { type: "string" }, description: "Signatures already present (the server-generated mint on create)." },
+    lastValidBlockHeight: { type: "integer" },
+    lookupTablesUsed: { type: "array", items: { type: "string" } },
+    note: { type: "string" },
+  },
+};
+
+const tradeOperation = (operationId: string, extra: Record<string, unknown> = {}) => ({
+  operationId,
+  tags: ["trading"],
+  summary: "Build an UNSIGNED buy, sell or create transaction with pump.fun's official SDK.",
+  description:
+    "Reads the coin's bonding curve (or its PumpSwap pool after graduation) from chain, prices the trade, and returns a base64 v0 transaction for `publicKey` to sign. Nothing is sent. Sign with the wallet, then broadcast with POST /rpc sendTransaction. Needs RPC_URL. Create with a dev buy needs the operator's lookup table (LOOKUP_TABLES); without one, create with amount 0, send it, then buy.",
+  requestBody: { required: true, content: { "application/json": { schema: tradeBody } } },
+  responses: { "200": { description: "Unsigned transaction and quote", content: { "application/json": { schema: tradeResult } } } },
+  ...extra,
+});
 
 export const communitySpec: Record<string, unknown> = {
   openapi: "3.1.0",
@@ -135,9 +178,10 @@ export const communitySpec: Record<string, unknown> = {
     description: [
       "Normalized API over pump.fun while developers.pump.fun is not yet available.",
       "Market-data paths proxy the unofficial frontend API the pump.fun website uses; they are",
-      "undocumented and may change or rate-limit without notice. Trading paths build transactions",
-      "through PumpPortal. /trade/local returns an UNSIGNED transaction: the user signs it with",
-      "their own wallet and broadcasts it (optionally via POST /rpc sendTransaction).",
+      "undocumented and may change or rate-limit without notice. POST /trade builds an UNSIGNED",
+      "transaction with pump.fun's official SDK from live chain state: the user signs it with their own",
+      "wallet and broadcasts it (optionally via POST /rpc sendTransaction). POST /metadata pins a new",
+      "coin's image and metadata to IPFS and returns the uri that create needs.",
       "Amounts from the frontend API are raw integers: lamports for SOL, 6-decimal units for tokens.",
       "Always filter and aggregate in code before returning: responses over ~6k tokens are truncated.",
     ].join(" "),
@@ -147,7 +191,7 @@ export const communitySpec: Record<string, unknown> = {
     { name: "coins", description: "Discover coins (unofficial frontend API)." },
     { name: "trades", description: "Trade history and candles (unofficial frontend API)." },
     { name: "wallets", description: "Per-wallet holdings and creations (unofficial frontend API)." },
-    { name: "trading", description: "Build buy/sell/create transactions via PumpPortal." },
+    { name: "trading", description: "Build unsigned buy/sell/create transactions with pump.fun's official SDK, and pin new coins' metadata." },
     { name: "chain", description: "On-chain reads (bonding curve) and allow-listed Solana JSON-RPC passthrough." },
   ],
   paths: {
@@ -304,56 +348,48 @@ export const communitySpec: Record<string, unknown> = {
         responses: { "200": { description: "Price", content: { "application/json": { schema: { type: "object", properties: { solPrice: { type: "number" } } } } } } },
       },
     },
+    "/trade": { post: tradeOperation("buildTrade") },
     "/trade/local": {
+      post: tradeOperation("buildTradeLegacy", {
+        deprecated: true,
+        summary: "Alias of POST /trade, kept for code written against the earlier route.",
+      }),
+    },
+    "/metadata": {
       post: {
-        operationId: "buildTradeTransaction",
+        operationId: "pinCoinMetadata",
         tags: ["trading"],
-        summary: "Build an UNSIGNED buy/sell/create transaction for the given wallet (PumpPortal Local API).",
+        summary: "Pin a new coin's image and metadata JSON to IPFS; returns the uri for POST /trade create.",
         description:
-          "Returns a base64 serialized VersionedTransaction. Nothing is sent on-chain. The user must sign with their wallet (and with the mint keypair for `create`) and broadcast it themselves, e.g. via POST /rpc with method sendTransaction. PumpPortal charges 0.5% on trades built this way.",
+          "The image goes inline as a base64 data URL (png, jpeg, gif or webp, 2 MB max); the server never fetches image URLs. Needs PINATA_JWT on the server; otherwise NOT_CONFIGURED, and you can host the JSON yourself and pass its uri to create.",
         requestBody: {
           required: true,
           content: {
             "application/json": {
               schema: {
-                allOf: [
-                  tradeBody,
-                  { type: "object", required: ["publicKey"], properties: { publicKey: { type: "string", description: "Wallet that will sign and pay." } } },
-                ],
-              },
-            },
-          },
-        },
-        responses: {
-          "200": {
-            description: "Unsigned transaction",
-            content: {
-              "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    transaction: { type: "string", description: "base64 VersionedTransaction bytes" },
-                    encoding: { type: "string", enum: ["base64"] },
-                  },
+                type: "object",
+                required: ["name", "symbol", "image"],
+                properties: {
+                  name: { type: "string", description: "1 to 32 characters." },
+                  symbol: { type: "string", description: "1 to 10 characters." },
+                  description: { type: "string", description: "Up to 1000 characters." },
+                  image: { type: "string", description: "data:image/png;base64,..." },
+                  website: { type: "string", description: "https:// link" },
+                  twitter: { type: "string", description: "https:// link" },
+                  telegram: { type: "string", description: "https:// link" },
                 },
               },
             },
           },
         },
-      },
-    },
-    "/trade/lightning": {
-      post: {
-        operationId: "executeTradeLightning",
-        tags: ["trading"],
-        summary: "Execute a buy/sell/create immediately with the PumpPortal-custodied wallet linked to this server's PUMPPORTAL_API_KEY.",
-        description:
-          "Sends real funds. Only available when the server is configured with PUMPPORTAL_API_KEY; otherwise the request fails with NOT_CONFIGURED. Prefer /trade/local so the user keeps their keys.",
-        requestBody: { required: true, content: { "application/json": { schema: tradeBody } } },
         responses: {
           "200": {
-            description: "Result",
-            content: { "application/json": { schema: { type: "object", properties: { signature: { type: "string" }, errors: { type: "array", items: { type: "string" } } } } } },
+            description: "IPFS links",
+            content: {
+              "application/json": {
+                schema: { type: "object", properties: { uri: { type: "string" }, image: { type: "string" }, metadata: { type: "object" } } },
+              },
+            },
           },
         },
       },

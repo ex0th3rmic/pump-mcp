@@ -180,18 +180,45 @@ export const examples: Example[] = [
     id: "buy",
     group: "trading",
     q: "Build a 0.25 SOL buy for my wallet, 10% slippage. I'll sign it.",
-    a: "Returns an unsigned transaction for your wallet. Nothing moves until you sign it. PumpPortal takes 0.5%.",
-    routes: ["POST /trade/local"],
+    a: "An unsigned transaction for your wallet, built with pump.fun's official SDK from the live curve. Nothing moves until you sign it.",
+    routes: ["POST /trade"],
     code: `async () => {
   const mint = "__MINT__";
   const wallet = "<YOUR_WALLET_PUBLIC_KEY>";
   const tx = await codemode.request({
     method: "POST",
-    path: "/trade/local",
-    body: { publicKey: wallet, action: "buy", mint, amount: 0.25, denominatedInSol: true, slippage: 10, priorityFee: 0.0005, pool: "auto" },
+    path: "/trade",
+    body: { publicKey: wallet, action: "buy", mint, amount: 0.25, denominatedInSol: true, slippage: 10, priorityFee: 0.0001 },
   });
-  // tx.bytes is a base64 VersionedTransaction. Sign it with your wallet, then send it via POST /rpc sendTransaction.
-  return { encoding: tx.encoding, bytes: tx.bytes?.slice(0, 80) + "…", length: tx.bytes?.length };
+  // tx.transaction is a base64 v0 transaction. Sign it with your wallet, then send it via POST /rpc sendTransaction.
+  return { venue: tx.venue, tokensOut: tx.quote.tokensOut, signers: tx.requiredSigners, bytes: tx.bytes };
+}`,
+  },
+  {
+    id: "launch",
+    group: "trading",
+    q: "Launch a coin with this image and a 0.1 SOL dev buy.",
+    a: "Pins the image and metadata to IPFS, then builds the create with your dev buy. The server makes the mint and signs once; your wallet signs the rest.",
+    routes: ["POST /metadata", "POST /trade create"],
+    oneCall: true,
+    code: `async () => {
+  const wallet = "<YOUR_WALLET_PUBLIC_KEY>";
+  const image = "data:image/png;base64,<BASE64_PNG>";
+  const meta = await codemode.request({
+    method: "POST",
+    path: "/metadata",
+    body: { name: "my coin", symbol: "MINE", description: "made by my agent", image },
+  });
+  const tx = await codemode.request({
+    method: "POST",
+    path: "/trade",
+    body: {
+      publicKey: wallet, action: "create", amount: 0.1, denominatedInSol: true, slippage: 10, priorityFee: 0.0001,
+      tokenMetadata: { name: "my coin", symbol: "MINE", uri: meta.uri },
+    },
+  });
+  // The mint already signed. Sign with your wallet (creator and payer), then broadcast.
+  return { mint: tx.mint, devBuyTokens: tx.quote.tokensOut, stillToSign: tx.requiredSigners.filter((k) => !tx.signedBy.includes(k)) };
 }`,
   },
 ];

@@ -9,8 +9,17 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["@cloudflare/workers-types", "bun-types"],
-    "lib": ["ES2022"]
+    "types": [
+      "@cloudflare/workers-types",
+      "bun-types"
+    ],
+    "lib": [
+      "ES2022"
+    ]
   },
-  "include": ["src", "test"]
+  "include": [
+    "src",
+    "test",
+    "scripts"
+  ]
 }

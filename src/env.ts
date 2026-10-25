@@ -10,9 +10,14 @@ export interface Env {
 
   // Community mode (developers.pump.fun not yet available)
   PUMP_FRONTEND_API_ORIGIN?: string;
-  PUMPPORTAL_ORIGIN?: string;
-  PUMPPORTAL_API_KEY?: string;
+  /** Solana RPC. Needed for /curve, /rpc and /trade (transactions are built from live chain state). */
   RPC_URL?: string;
+  /** Comma-separated address lookup tables /trade may compile with (create + dev buy needs one). */
+  LOOKUP_TABLES?: string;
+  /** Pinata JWT. Enables POST /metadata (pins a coin's image and metadata JSON to IPFS). */
+  PINATA_JWT?: string;
+  /** Gateway prefix for the returned IPFS links. Defaults to https://ipfs.io/ipfs/. */
+  IPFS_GATEWAY?: string;
   RPC_ALLOWED_METHODS?: string;
   /** Mint whose bonding curve the web app shows on load via GET /api/showcase (public, cached 20s). */
   SHOWCASE_MINT?: string;

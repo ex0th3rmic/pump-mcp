@@ -5,7 +5,8 @@ export interface Health {
   mode: "hybrid" | "community";
   officialKey: boolean;
   rpc: boolean;
-  lightning: boolean;
+  metadataUpload: boolean;
+  devBuyInCreate: boolean;
   auth: boolean;
 }
 

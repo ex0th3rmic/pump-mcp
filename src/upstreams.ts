@@ -4,6 +4,8 @@ import { modeOf } from "./env";
 import { bondingCurveAddress, decodeBondingCurve, describeCurve, isBase58Pubkey } from "./curve";
 import type { OfficialSpec } from "./official";
 import { matchOfficialPath } from "./official";
+import { buildTrade, TradeError } from "./tx";
+import { MetadataError, pinMetadata } from "./metadata";
 
 /**
  * Host-side handler for `codemode.request()` calls coming out of the sandbox.
@@ -27,7 +29,6 @@ export class UpstreamError extends Error {
 }
 
 const DEFAULT_FRONTEND = "https://frontend-api-v3.pump.fun";
-const DEFAULT_PUMPPORTAL = "https://pumpportal.fun";
 
 type Query = Record<string, string | number | boolean | undefined>;
 
@@ -63,14 +64,6 @@ async function fetchJson(fetchImpl: FetchLike, url: string, init: RequestInit, l
   return readBody(res);
 }
 
-function bytesToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  let bin = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(bin);
-}
 
 /** Paths under the frontend API that sandbox code may read. Everything else is refused. */
 const FRONTEND_GET = [
@@ -89,40 +82,11 @@ const FRONTEND_GET = [
   /^\/sol-price$/,
 ];
 
-function normalizeTradeBody(body: unknown, requirePublicKey: boolean): Record<string, unknown> {
-  if (!body || typeof body !== "object") throw new UpstreamError("trade body must be an object", "BAD_REQUEST");
-  const b = body as Record<string, unknown>;
-  const action = b.action;
-  if (action !== "buy" && action !== "sell" && action !== "create") {
-    throw new UpstreamError("action must be buy, sell or create", "BAD_REQUEST");
-  }
-  if (typeof b.mint !== "string" || b.mint.length < 32) throw new UpstreamError("mint is required", "BAD_REQUEST");
-  if (requirePublicKey && (typeof b.publicKey !== "string" || b.publicKey.length < 32)) {
-    throw new UpstreamError("publicKey is required for /trade/local", "BAD_REQUEST");
-  }
-  if (action === "create") {
-    const meta = b.tokenMetadata as Record<string, unknown> | undefined;
-    if (!meta || typeof meta.name !== "string" || typeof meta.symbol !== "string" || typeof meta.uri !== "string") {
-      throw new UpstreamError("tokenMetadata {name, symbol, uri} is required for create", "BAD_REQUEST");
-    }
-  }
-  for (const key of ["amount", "slippage", "priorityFee", "denominatedInSol"]) {
-    if (b[key] === undefined) throw new UpstreamError(`${key} is required`, "BAD_REQUEST");
-  }
-  // PumpPortal wants denominatedInSol as the strings "true" / "false".
-  const denominatedInSol = String(b.denominatedInSol === true || b.denominatedInSol === "true");
-  const out: Record<string, unknown> = {
-    action,
-    mint: b.mint,
-    amount: b.amount,
-    denominatedInSol,
-    slippage: b.slippage,
-    priorityFee: b.priorityFee,
-    pool: typeof b.pool === "string" ? b.pool : "auto",
-  };
-  if (requirePublicKey) out.publicKey = b.publicKey;
-  if (action === "create") out.tokenMetadata = b.tokenMetadata;
-  return out;
+function lookupTablesOf(env: Env): string[] {
+  return (env.LOOKUP_TABLES ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 async function communityRequest(opts: RequestOptions, env: Env, fetchImpl: FetchLike): Promise<unknown> {
@@ -139,36 +103,25 @@ async function communityRequest(opts: RequestOptions, env: Env, fetchImpl: Fetch
     return fetchJson(fetchImpl, url.toString(), { method: "GET", headers: { accept: "application/json" } }, "pump.fun frontend API");
   }
 
-  // Trading via PumpPortal
-  if (method === "POST" && path === "/trade/local") {
-    const origin = stripSlash(env.PUMPPORTAL_ORIGIN || DEFAULT_PUMPPORTAL);
-    const body = normalizeTradeBody(opts.body, true);
-    const res = await fetchImpl(`${origin}/api/trade-local`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const detail = (await res.text()).slice(0, 500);
-      throw new UpstreamError(`PumpPortal responded ${res.status}: ${detail}`, "UPSTREAM", res.status);
+  // Trading: unsigned transactions built with pump.fun's official SDK. /trade/local is an alias
+  // kept for code written against the earlier PumpPortal-backed route.
+  if (method === "POST" && (path === "/trade" || path === "/trade/local")) {
+    try {
+      return await buildTrade(opts.body, { rpcUrl: env.RPC_URL, fetchImpl, lookupTables: lookupTablesOf(env) });
+    } catch (e) {
+      if (e instanceof TradeError) throw new UpstreamError(e.message, e.code, e.status);
+      throw e;
     }
-    const buf = await res.arrayBuffer();
-    return { transaction: bytesToBase64(buf), encoding: "base64", bytes: buf.byteLength };
   }
-  if (method === "POST" && path === "/trade/lightning") {
-    if (!env.PUMPPORTAL_API_KEY) {
-      throw new UpstreamError("Lightning trading is disabled: PUMPPORTAL_API_KEY is not configured on this server", "NOT_CONFIGURED");
+
+  // Coin metadata: pin the image and JSON to IPFS, return the uri create takes.
+  if (method === "POST" && path === "/metadata") {
+    try {
+      return await pinMetadata(opts.body, { jwt: env.PINATA_JWT, gateway: env.IPFS_GATEWAY, fetchImpl });
+    } catch (e) {
+      if (e instanceof MetadataError) throw new UpstreamError(e.message, e.code, e.status);
+      throw e;
     }
-    const origin = stripSlash(env.PUMPPORTAL_ORIGIN || DEFAULT_PUMPPORTAL);
-    const body = normalizeTradeBody(opts.body, false);
-    const url = new URL(`${origin}/api/trade`);
-    url.searchParams.set("api-key", env.PUMPPORTAL_API_KEY);
-    return fetchJson(
-      fetchImpl,
-      url.toString(),
-      { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
-      "PumpPortal",
-    );
   }
 
   // On-chain bonding curve (works without any pump.fun HTTP API)

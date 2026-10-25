@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600" role="img" aria-labelledby="t d">
   <title id="t">How pump-mcp handles a request</title>
-  <desc id="d">An agent calls the MCP endpoint with a bearer token. The host Worker runs the model's JavaScript in a sandboxed Dynamic Worker with no network. Every codemode.request() returns to the host, which attaches secrets and forwards to Solana RPC, PumpPortal or the pump.fun Developer API.</desc>
+  <desc id="d">An agent calls the MCP endpoint with a bearer token. The host Worker runs the model's JavaScript in a sandboxed Dynamic Worker with no network. Every codemode.request() returns to the host, which attaches secrets and forwards to Solana RPC, IPFS or the pump.fun Developer API. Trades are built in the host with pump.fun's official SDK.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#6b7380"/>
@@ -55,7 +55,7 @@
     <text x="424" y="302">· attaches secrets, calls upstreams</text>
   </g>
   <g class="mono k">
-    <text x="424" y="340">RPC_URL · PUMP_API_KEY · PUMPPORTAL_API_KEY</text>
+    <text x="424" y="340">RPC_URL · PUMP_API_KEY · PINATA_JWT</text>
   </g>
   <text x="424" y="362" class="mono m">secrets live here only</text>
 
@@ -75,12 +75,12 @@
   <rect x="856" y="168" width="376" height="84" rx="10" class="box"/>
   <text x="880" y="196" class="sans h">Solana RPC</text>
   <text x="880" y="216" class="sans s">Helius, keyed · bonding-curve PDA decoded in the Worker</text>
-  <text x="880" y="238" class="mono k">GET /curve/{mint} · POST /rpc (allow-listed)</text>
+  <text x="880" y="238" class="mono k">/curve · /rpc · /trade (official pump.fun SDK)</text>
 
   <rect x="856" y="258" width="376" height="84" rx="10" class="box"/>
-  <text x="880" y="286" class="sans h">PumpPortal</text>
-  <text x="880" y="306" class="sans s">builds an unsigned transaction for the user's wallet</text>
-  <text x="880" y="328" class="mono k">POST /trade/local · unsigned until you sign</text>
+  <text x="880" y="286" class="sans h">IPFS (Pinata)</text>
+  <text x="880" y="306" class="sans s">pins a new coin's image and metadata JSON</text>
+  <text x="880" y="328" class="mono k">POST /metadata · new coin image + JSON</text>
 
   <rect x="856" y="348" width="376" height="84" rx="10" class="box"/>
   <text x="880" y="376" class="sans h">pump.fun Developer API</text>

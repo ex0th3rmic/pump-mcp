@@ -5,7 +5,21 @@ and the project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+- Trades are built in the Worker with pump.fun's official SDK (`@pump-fun/pump-sdk`) instead of PumpPortal:
+  v3 bonding-curve instructions, PumpSwap after graduation, no third-party fee. Responses now include a
+  quote, the venue, required signers and any lookup tables used. `POST /trade` is the route;
+  `/trade/local` remains as a deprecated alias.
+
+### Removed
+- `POST /trade/lightning` and the `PUMPPORTAL_*` settings. The server no longer offers a custodial route.
+
 ### Added
+- Coin launches: `POST /metadata` pins a new coin's image and metadata to IPFS (`PINATA_JWT`), and
+  `/trade` create generates the mint server-side, pre-signs with it and discards it.
+- `LOOKUP_TABLES` and `bun run lookup-table`, which creates the operator's lookup table so create with a
+  dev buy fits in one transaction.
+- Offline transaction tests that replay recorded mainnet RPC responses (`test/support/rpc-cassette.ts`).
 - README branding (theme-aware logo, both colorways, banner, X header, social preview), badges, quickstart,
   configuration reference, roadmap, FAQ and acknowledgements.
 - `SECURITY.md` with private vulnerability reporting, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1),

@@ -50,10 +50,10 @@
   const features = $derived([
     { label: "curve & quotes", on: health?.rpc ?? false, off: "curve & quotes · RPC_URL not set" },
     { label: "Solana RPC", on: health?.rpc ?? false, off: "Solana RPC · RPC_URL not set" },
-    { label: "unsigned trades", on: true, off: "" },
+    { label: "unsigned trades", on: health?.rpc ?? false, off: "unsigned trades · RPC_URL not set" },
     { label: "sandboxed execution", on: true, off: "" },
     { label: "social API", on: health?.officialKey ?? false, off: "social API · key pending" },
-    { label: "lightning trades", on: health?.lightning ?? false, off: "lightning trades · off" },
+    { label: "coin launches", on: health?.rpc ?? false, off: "coin launches · RPC_URL not set" },
   ]);
 </script>
 
@@ -115,7 +115,7 @@
   <div class="steps">
     <div class="step"><b><i>①</i>search</b>The agent asks what's possible and gets matching routes from one merged OpenAPI spec: official API, curve, RPC, trading.</div>
     <div class="step"><b><i>②</i>execute</b>It writes a few lines of JavaScript. The code runs in a sandboxed Worker with no network access of its own.</div>
-    <div class="step"><b><i>③</i>host fetches</b>Every request returns to this Worker, which attaches the keys and calls Solana, PumpPortal or pump.fun. Keys never enter the sandbox.</div>
+    <div class="step"><b><i>③</i>host fetches</b>Every request returns to this Worker, which attaches the keys and calls Solana, IPFS or pump.fun's API. Trades are built right here with pump.fun's official SDK. Keys never enter the sandbox.</div>
   </div>
 
   <h2 class="sec" bind:this={playground} id="try"><span class="n">05</span> try it</h2>
@@ -144,7 +144,7 @@
         <span class="k">built on</span>
         <a href="https://developers.cloudflare.com/agents/tools/codemode/" target="_blank" rel="noopener">Cloudflare Code Mode</a> ·
         <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a> ·
-        <a href="https://pumpportal.fun" target="_blank" rel="noopener">PumpPortal</a> (trade building) ·
+        <a href="https://www.npmjs.com/package/@pump-fun/pump-sdk" target="_blank" rel="noopener">pump.fun SDK</a> (trade building) ·
         <a href="https://www.helius.dev" target="_blank" rel="noopener">Helius</a> (RPC)
       </div>
     </div>

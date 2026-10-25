@@ -34,9 +34,9 @@
   <!-- upstreams -->
   <rect x="640" y="20" width="260" height="160" rx="8" class="box" />
   <text x="660" y="52" class="h">Solana RPC</text>
-  <text x="660" y="70" class="m">/curve · /rpc</text>
-  <text x="660" y="104" class="h">PumpPortal</text>
-  <text x="660" y="122" class="m">/trade/local · unsigned</text>
+  <text x="660" y="70" class="m">/curve · /rpc · /trade state</text>
+  <text x="660" y="104" class="h">IPFS</text>
+  <text x="660" y="122" class="m">/metadata · new coins</text>
   <text x="660" y="156" class="h">pump.fun Developer API</text>
   <text x="660" y="174" class="m">official routes · needs key</text>
 

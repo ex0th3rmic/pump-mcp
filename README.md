@@ -73,8 +73,11 @@ tool. `/llms.txt` says the same for agents.
   the host Worker, and unknown paths are refused before any fetch.
 - **Chain reads with no middleman.** Bonding curves decoded straight from Solana: price, market cap,
   graduation progress, buy and sell quotes, for SOL-, USDC- and PUMP-quoted coins.
-- **Non-custodial trades.** Buy, sell and create come back as unsigned transactions for the caller's
-  wallet. Nothing moves until the user signs.
+- **Non-custodial trades on pump.fun's own SDK.** Buy, sell and create are built in the Worker with
+  [`@pump-fun/pump-sdk`](https://www.npmjs.com/package/@pump-fun/pump-sdk), on the curve or on PumpSwap
+  after graduation, and come back unsigned for the caller's wallet. No middleman, no extra fee.
+- **Coin launches from the agent.** `/metadata` pins the image and metadata to IPFS; `/trade` create
+  returns a transaction the server's fresh mint has already signed, so only the creator signs.
 - **A web app and an `llms.txt`.** Connect snippets for eight clients, runnable examples, a playground,
   and a plain-text description for agents.
 - **Privacy-respecting usage counts.** Optional Analytics Engine counts of page views and tool calls by
@@ -137,8 +140,8 @@ What that buys the person on the other end of the agent:
   amounts of real JavaScript and very few real tool-call transcripts, so given a typed API they chain,
   loop and branch reliably, while given eighty tools they fumble. That is an argument from training
   data rather than a published benchmark, but it matches what we see in practice here.
-- **The keys are unreachable.** The model's code cannot read `RPC_URL`, `PUMP_API_KEY` or the
-  PumpPortal key, cannot open a socket, and cannot call a path outside the route table. Those are
+- **The keys are unreachable.** The model's code cannot read `RPC_URL`, `PUMP_API_KEY` or
+  `PINATA_JWT`, cannot open a socket, and cannot call a path outside the route table. Those are
   properties of the sandbox, not of a prompt asking the model to behave.
 - **The whole surface, not a curated slice.** All 67 official routes plus curve, RPC and trade building
   are available, found on demand through `search`, instead of a subset squeezed into a tool list.
@@ -171,14 +174,14 @@ One merged OpenAPI document, routed per path:
 | **Official Developer API** (67 ops): `/users/*`, `/following/*`, `/callout/*`, `/posts/*`, `/pnl-leaderboard/*`, `/competitions/*`, `/user-positions/*`, `/user-trades/*`, `/portfolio-summary*`, `/moderation/*`, ... | `https://api.pump.fun/v1` (devnet: `api-devnet.pump.fun`) | `PUMP_API_KEY` (`pf_live_...`) | Read-only social data. Spec fetched from `https://docs.pump.fun/openapi.public.json` and cached 1h. Scopes, 2 rps / 50k per day per key. Error envelopes (`API_KEY_RATE_LIMITED`, `retryAfterMs`...) are passed through. |
 | `GET /curve/{mint}` | Solana RPC, bonding-curve PDA decoded in-Worker (`src/curve.ts`, layout from the public IDL) | `RPC_URL` | Reserves, price, market cap, graduation progress, buy/sell quotes. Handles SOL-, USDC- and PUMP-quoted curves; Mayhem-mode coins get price but no quotes. |
 | `POST /rpc` | Solana RPC, allow-listed methods only | `RPC_URL` | `getAccountInfo`, `getBalance`, `getTransaction`, `simulateTransaction`, `sendTransaction`, ... (`RPC_ALLOWED_METHODS`). |
-| `POST /trade/local` | PumpPortal Local API | nothing | Returns an **unsigned** base64 transaction for the given wallet. PumpPortal takes 0.5%. |
-| `POST /trade/lightning` | PumpPortal Lightning API | `PUMPPORTAL_API_KEY` | Disabled unless set. Moves funds from the PumpPortal-custodied wallet. |
+| `POST /trade` | Built in-Worker with pump.fun's official SDK from live chain state | `RPC_URL` | Buy, sell or create as an **unsigned** base64 v0 transaction for the given wallet. Curve or PumpSwap is picked automatically; sells take `"100%"`. Create generates the mint server-side and pre-signs with it. Create with a dev buy needs `LOOKUP_TABLES`. `/trade/local` is a deprecated alias. |
+| `POST /metadata` | IPFS via Pinata | `PINATA_JWT` | Pins a new coin's image (inline data URL, 2 MB max) and metadata JSON; returns the `uri` create takes. Never fetches URLs. |
 | `GET /coins*`, `/trades/*`, `/candlesticks/*`, `/replies/*`, `/balances/*`, `/sol-price` | `frontend-api-v3.pump.fun` (unofficial, the website's API) | nothing | **Blocked from servers today**: pump.fun fronts it with a bot challenge, so Workers get `403 Just a moment...`. Kept for when that changes or for a mirror set via `PUMP_FRONTEND_API_ORIGIN`. |
 
 Secrets never reach the sandbox: they are attached in `src/upstreams.ts` only. Unknown paths are refused
 before any fetch, so model code cannot use the Worker as an open proxy, and `fetch()` inside the sandbox throws.
 
-<p align="center"><img src="docs/architecture.svg" alt="How a call flows: the agent posts to /mcp with a bearer token; the host Worker runs the model's code in a Dynamic Worker sandbox with no network; every codemode.request() returns to the host, which attaches secrets and calls Solana RPC, PumpPortal or the pump.fun Developer API" width="100%"></p>
+<p align="center"><img src="docs/architecture.svg" alt="How a call flows: the agent posts to /mcp with a bearer token; the host Worker runs the model's code in a Dynamic Worker sandbox with no network; every codemode.request() returns to the host, which attaches secrets and calls Solana RPC, IPFS or the pump.fun Developer API" width="100%"></p>
 
 Unauthenticated routes, for people and agents: `GET /` (web app), `GET /health`, `GET /openapi.json`,
 `GET /llms.txt` and `GET /api/showcase`. Everything the agent does goes through `POST /mcp`.
@@ -199,15 +202,16 @@ For local development put both in `.dev.vars` (see `.dev.vars.example`).
 | Name | Kind | Required | What it does |
 |---|---|---|---|
 | `MCP_BEARER_TOKEN` | secret | yes | The one credential clients send to `/mcp`. Without it `/mcp` answers 503. |
-| `RPC_URL` | secret | for chain reads | Solana RPC endpoint. Enables `/curve`, `/rpc` and the showcase curve. |
+| `RPC_URL` | secret | for chain reads and trades | Solana RPC endpoint. Enables `/curve`, `/rpc`, `/trade` and the showcase curve. |
 | `PUMP_API_KEY` | secret | for official routes | `pf_live_...` key from [developers.pump.fun](https://developers.pump.fun). |
-| `PUMPPORTAL_API_KEY` | secret | no | Enables `/trade/lightning` (custodial). Leave unset for a non-custodial server. |
+| `PINATA_JWT` | secret | for `/metadata` | Pinata API JWT used to pin new coins' images and metadata to IPFS. |
+| `LOOKUP_TABLES` | var | for create + dev buy | Address lookup table(s) the operator created with `bun run lookup-table`. |
+| `IPFS_GATEWAY` | var | no | Gateway prefix for the links `/metadata` returns. Defaults to `https://ipfs.io/ipfs/`. |
 | `SHOWCASE_MINT` | var | no | Mint whose live curve the web app draws through `/api/showcase`. Empty shows a sample. |
 | `PUMP_OPENAPI_URL` | var | no | Official spec URL. Set to `""` to serve only the non-official routes. |
 | `PUMP_API_ORIGIN` | var | no | Official API origin; `https://api-devnet.pump.fun/v1` for devnet. |
 | `RPC_ALLOWED_METHODS` | var | no | Comma-separated JSON-RPC methods the sandbox may call through `/rpc`. |
 | `PUMP_FRONTEND_API_ORIGIN` | var | no | Origin for the unofficial frontend-API routes, or a mirror of it. |
-| `PUMPPORTAL_ORIGIN` | var | no | PumpPortal origin used by the trade routes. |
 | `LOADER` | binding | yes | `[[worker_loaders]]`: spawns the sandbox. Needs Workers Paid in production. |
 | `ASSETS` | binding | no | `[assets]`: serves the built web app from `dist/`. |
 | `ANALYTICS` | binding | no | `[[analytics_engine_datasets]]`: usage counts. Remove the block to record nothing. |
@@ -239,8 +243,8 @@ async () => {
   const curve = await codemode.request({ method: "GET", path: `/curve/${mint}`, query: { buyAmount: 0.5 } });
   const holders = await codemode.request({ method: "GET", path: `/mint-positions/${mint}` }); // official, needs key
   const tx = await codemode.request({
-    method: "POST", path: "/trade/local",
-    body: { publicKey: WALLET, action: "buy", mint, amount: 0.5, denominatedInSol: true, slippage: 10, priorityFee: 0.0005, pool: "auto" },
+    method: "POST", path: "/trade",
+    body: { publicKey: WALLET, action: "buy", mint, amount: 0.5, denominatedInSol: true, slippage: 10, priorityFee: 0.0001 },
   });
   return { quoteAsset: curve.quote.symbol, price: curve.priceInQuote, topHolders: holders.slice(0, 5), unsignedTx: tx.transaction };
 }
@@ -258,8 +262,8 @@ It is shown once. Until approved, everything except the official routes works.
 npx wrangler login                        # or CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID
 wrangler secret put MCP_BEARER_TOKEN      # required; /mcp answers 503 without it
 wrangler secret put PUMP_API_KEY          # pf_live_... (optional until approved)
-wrangler secret put RPC_URL               # keyed Helius URL; enables /curve and /rpc
-wrangler secret put PUMPPORTAL_API_KEY    # optional; enables /trade/lightning
+wrangler secret put RPC_URL               # keyed Helius URL; enables /curve, /rpc and /trade
+wrangler secret put PINATA_JWT            # optional; enables /metadata for coin launches
 bun run deploy                            # vite build, then wrangler deploy
 ```
 
@@ -272,6 +276,22 @@ static illustration.
 Worker Loader bindings (`[[worker_loaders]]`) need the Workers Paid plan in production; `wrangler dev`
 runs them locally for free. Devnet: set `PUMP_API_ORIGIN = "https://api-devnet.pump.fun/v1"`. To serve
 only the non-official routes set `PUMP_OPENAPI_URL = ""`. The bundle is ~5 MB raw / ~1 MB gzip (`agents/mcp`).
+
+### Coin launches
+
+A create with a dev buy references about 33 accounts, too many to fit Solana's 1232-byte transaction
+inline. A lookup table holding pump.fun's fixed accounts brings it to about 930 bytes. Create one once,
+owned by your wallet (about 0.0075 SOL of rent):
+
+```sh
+bun run lookup-table --keypair ~/path/to/wallet.json          # shows the plan and cost, sends nothing
+bun run lookup-table --keypair ~/path/to/wallet.json --yes    # signs with that wallet and sends
+```
+
+Then set `LOOKUP_TABLES` in `wrangler.toml` to the address it prints and redeploy. Lookup tables are
+append-only, so no one can change what a table entry points to under a transaction you've signed.
+`--authority <pubkey>` prints the unsigned transactions instead, to sign elsewhere. Without a table,
+creates still work: create with `amount: 0`, send it, then buy in a second call.
 
 To rotate the bearer token, generate a new one and run `wrangler secret put MCP_BEARER_TOKEN` again; the
 old value stops working immediately for every client.
@@ -304,15 +324,14 @@ how to run this server:
 - Cache API data for at most 24 hours (8.7); show "Data from pump.fun" to end users (10.3).
 - Honour rate-limit and `Retry-After` headers; no spreading load across keys (7.2).
 
-The on-chain, RPC and PumpPortal routes are outside those terms. PumpPortal has its own.
+The on-chain, RPC, trading and IPFS routes are outside those terms.
 
 ## Roadmap
 
-- [ ] **Trades on pump.fun's official SDK.** Build buy, sell and create with
-  [`@pump-fun/pump-sdk`](https://www.npmjs.com/package/@pump-fun/pump-sdk) (including PumpSwap after
-  graduation) instead of PumpPortal: no 0.5% fee, no third-party dependency, same unsigned-only design.
-- [ ] **Coin launches from the agent.** A metadata upload route (image + JSON pinned to IPFS) so "launch
-  a coin called X with this image" goes from one call to a transaction your wallet signs.
+- [x] **Trades on pump.fun's official SDK.** Buy, sell and create built with
+  [`@pump-fun/pump-sdk`](https://www.npmjs.com/package/@pump-fun/pump-sdk), PumpSwap after graduation.
+- [x] **Coin launches from the agent.** `/metadata` plus `/trade` create: "launch a coin called X with
+  this image" becomes one call and a transaction your wallet signs.
 - [ ] **A self-selecting showcase coin** for the web app, so the hero curve never shows a graduated coin.
 - [ ] **Per-user tokens or OAuth** in front of `/mcp`, with per-token rate limits, for teams that share a
   deployment.
@@ -328,8 +347,8 @@ key, its Developer API.
 
 **Does it hold my funds or keys?**
 No. Trades come back as unsigned transactions for the wallet you name; only your wallet can sign them.
-The one exception is the optional `/trade/lightning` route, which uses a PumpPortal-custodied wallet and
-is off unless the operator sets `PUMPPORTAL_API_KEY`.
+On create, the server generates the new coin's mint keypair, signs once with it, and discards it; the
+response carries only the mint's address.
 
 **Where do I get a bearer token?**
 From whoever runs the server. If you run your own, generate one with `openssl rand -hex 32` and set it
@@ -344,8 +363,8 @@ They proxy pump.fun's website API, which sits behind a bot challenge that blocks
 routes (with a key), `/curve` and `/rpc` for chain data, or point `PUMP_FRONTEND_API_ORIGIN` at a mirror.
 
 **Can it launch coins?**
-`POST /trade/local` with `action: "create"` builds an unsigned create transaction today, given a metadata
-URI you host yourself. First-class launching with metadata upload is on the [roadmap](#roadmap).
+Yes. `POST /metadata` pins the image and metadata, and `POST /trade` with `action: "create"` builds the
+launch, with an optional dev buy once the operator has a lookup table. See [Coin launches](#coin-launches).
 
 **Does it work on devnet?**
 The official routes do, via `PUMP_API_ORIGIN`. Point `RPC_URL` at a devnet RPC for chain reads.
@@ -397,7 +416,11 @@ The mark is a bonding curve with the coin's position on it. Use it to link to or
 - `src/index.ts` - Worker entry: `/health`, `/openapi.json`, `/llms.txt`, `/api/showcase`, bearer-gated `/mcp`, static assets for the rest. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.
 - `src/official.ts` - fetches/merges the official OpenAPI document and matches its path templates.
 - `src/spec.ts` - the non-official routes as OpenAPI 3.1.
-- `src/upstreams.ts` - host-side `request()` router: route table, validation, secret injection, binary-to-base64 for transactions.
+- `src/upstreams.ts` - host-side `request()` router: route table, validation, secret injection.
+- `src/tx.ts` - unsigned buy, sell and create transactions with pump.fun's official SDK; curve or PumpSwap.
+- `src/lookup.ts` - the lookup table's address list and the transactions that create it.
+- `src/metadata.ts` - pins a new coin's image and metadata JSON to IPFS.
+- `scripts/lookup-table.ts` - one-time CLI that creates the operator's lookup table.
 - `src/curve.ts` - bonding-curve PDA derivation (noble ed25519 + sha256) and Borsh decode per the IDL, quotes.
 - `web/` - the web app (Svelte 5). `vite build` writes it to `dist/`, which `[assets]` in `wrangler.toml` serves.
 - `test/` - `bun test`; upstreams are exercised with an injected `fetch`.
@@ -415,7 +438,8 @@ The mark is a bonding curve with the coin's position on it. Use it to link to or
   and Dynamic Worker Loader, which make running model-written code safe enough to do on every call.
 - [pump.fun](https://docs.pump.fun) for publishing its Developer API, OpenAPI document,
   [program docs and IDLs](https://github.com/pump-fun/pump-public-docs).
-- [PumpPortal](https://pumpportal.fun) for the transaction-building API the trade routes use today.
+- [pump.fun's SDK](https://www.npmjs.com/package/@pump-fun/pump-sdk), which builds every trade and launch.
+- [Pinata](https://pinata.cloud) for IPFS pinning of new coins' metadata.
 - [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) for the write-up on code
   execution with MCP, and the [Model Context Protocol](https://modelcontextprotocol.io).
 - [noble](https://paulmillr.com/noble/) cryptography and [Svelte](https://svelte.dev).

@@ -22,7 +22,7 @@ bun run dev:web                  # optional: Vite with hot reload on :5173
 ## Where things live
 
 - `src/` is the Worker. `index.ts` routes requests; `upstreams.ts` is the only place that talks to
-  Solana, PumpPortal or pump.fun and the only place secrets are read; `curve.ts` decodes bonding curves;
+  Solana, IPFS or pump.fun and the only place secrets are read; `tx.ts` builds trades with pump.fun's SDK; `curve.ts` decodes bonding curves;
   `spec.ts` and `official.ts` build the OpenAPI document the agent sees.
 - `web/` is the page: Svelte 5, no component library. `lib/examples.ts` holds the example questions and
   the code each one runs; `lib/snippets.ts` holds the per-client connect snippets.

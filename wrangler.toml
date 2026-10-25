@@ -14,10 +14,10 @@ upload_source_maps = true
 [[worker_loaders]]
 binding = "LOADER"
 
-# The web app (route explorer, connect snippets, playground) lives in ./public and is served for
+# The web app (Svelte, source in ./web, built to ./dist by `vite build`) is served for
 # every path the Worker does not handle itself (/mcp, /health, /openapi.json).
 [assets]
-directory = "./public"
+directory = "./dist"
 binding = "ASSETS"
 
 # Plain vars. Secrets (never commit): `wrangler secret put MCP_BEARER_TOKEN` (required),
@@ -34,6 +34,9 @@ PUMPPORTAL_ORIGIN = "https://pumpportal.fun"
 PUMP_OPENAPI_URL = "https://docs.pump.fun/openapi.public.json"
 PUMP_API_ORIGIN = "https://api.pump.fun/v1"
 # JSON-RPC methods sandbox code may call through POST /rpc (comma separated).
+# Coin whose bonding curve the web app shows on load (GET /api/showcase, public, cached 20s). Pick any
+# live pump.fun mint; leave empty to show a static illustration instead.
+SHOWCASE_MINT = "GPieo9s4rz6ungQnsqyiUrznqDypMgrNXmFSDM2vpump"
 RPC_ALLOWED_METHODS = "getAccountInfo,getBalance,getTokenAccountBalance,getTokenAccountsByOwner,getTokenLargestAccounts,getTokenSupply,getLatestBlockhash,getSignaturesForAddress,getTransaction,getMultipleAccounts,simulateTransaction,sendTransaction,getSignatureStatuses"
 
 [observability]

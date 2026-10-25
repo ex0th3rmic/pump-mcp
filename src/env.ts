@@ -12,6 +12,8 @@ export interface Env {
   PUMPPORTAL_API_KEY?: string;
   RPC_URL?: string;
   RPC_ALLOWED_METHODS?: string;
+  /** Mint whose bonding curve the web app shows on load via GET /api/showcase (public, cached 20s). */
+  SHOWCASE_MINT?: string;
 
   // Official pump.fun Developer API (docs.pump.fun). PUMP_OPENAPI_URL="" disables the official
   // routes entirely and serves the community spec alone.

@@ -2,7 +2,7 @@ import type { Env } from "./env";
 import { modeOf } from "./env";
 import { mergeSpecs, prepareOfficialSpec, type OfficialSpec } from "./official";
 import { communitySpec } from "./spec";
-import { handleRequest } from "./upstreams";
+import { handleRequest, type FetchLike } from "./upstreams";
 
 const VERSION = "0.1.0";
 
@@ -57,7 +57,55 @@ const DESCRIPTION = [
   "Present results as 'Data from pump.fun'.",
 ].join(" ");
 
-export default {
+const LLMS_TXT = (origin: string) => `# pump-mcp
+
+Self-hosted Model Context Protocol (MCP) server for pump.fun on Cloudflare Workers.
+Data from pump.fun. Trades are built unsigned; the user's wallet signs.
+
+## Endpoint
+
+- MCP (streamable HTTP): POST ${origin}/mcp
+- Auth: every request needs the header \`Authorization: Bearer <MCP_BEARER_TOKEN>\` (ask the operator for the token)
+- Status: GET ${origin}/health
+- OpenAPI document of everything the tools can call: GET ${origin}/openapi.json
+- Showcase curve, no auth: GET ${origin}/api/showcase
+
+## Tools
+
+Two tools, Code Mode style. Instead of one tool per endpoint, write JavaScript against the OpenAPI document.
+
+- search: run \`codemode.spec()\` to inspect the OpenAPI document and find routes.
+- execute: run an async function that calls \`codemode.request({ method, path, query, body })\` as many times as needed, filters and joins in code, and returns only what the user needs. Many requests per call is the point: run them with Promise.all.
+
+Example execute body:
+
+    async () => {
+      const mint = "<MINT>";
+      const curve = await codemode.request({ method: "GET", path: \`/curve/\${mint}\`, query: { buyAmount: 0.5 } });
+      return { price: curve.priceInQuote, progress: curve.graduationProgress, buy: curve.buyQuote };
+    }
+
+## Routes
+
+- GET /curve/{mint}: bonding curve read straight from Solana. Price, market cap, graduation progress, reserves, buy/sell quotes (query buyAmount, sellTokens). No pump.fun key needed.
+- POST /rpc: allow-listed Solana JSON-RPC methods (getAccountInfo, getBalance, getTokenLargestAccounts, getTokenSupply, getSignaturesForAddress, getTransaction, simulateTransaction, sendTransaction, ...). Body: { method, params }.
+- POST /trade/local: returns an UNSIGNED transaction for the given wallet (PumpPortal Local API, 0.5% fee). Body: { publicKey, action: "buy"|"sell", mint, amount, denominatedInSol, slippage, priorityFee, pool: "auto" }.
+- Official pump.fun Developer API routes (users, following, posts, callouts, leaderboards, positions, trades): read-only social data. Available only when the operator has configured PUMP_API_KEY; otherwise they fail with NOT_CONFIGURED. Rate limited (2 rps, 50k/day).
+
+## Rules
+
+- Present results as "Data from pump.fun".
+- Do not retain API data for training. Cache at most 24 hours.
+- Final responses are truncated around 6k tokens: filter in code, return small objects.
+`;
+
+export interface HandlerDeps {
+  /** Injected for tests; defaults to global fetch. */
+  fetchImpl?: FetchLike;
+}
+
+export function createHandler(deps: HandlerDeps = {}) {
+  return {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
@@ -71,6 +119,30 @@ export default {
         lightning: Boolean(env.PUMPPORTAL_API_KEY),
         auth: Boolean(env.MCP_BEARER_TOKEN),
       });
+    }
+
+    if (url.pathname === "/llms.txt") {
+      return new Response(LLMS_TXT(url.origin), { headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
+    }
+
+    // Public, cached read of one operator-chosen coin so the web app can show a live curve on load
+    // without a bearer token. Fixed mint + 20s cache: no way to turn it into a free RPC proxy.
+    if (url.pathname === "/api/showcase") {
+      if (request.method !== "GET") return json({ error: "NOT_FOUND" }, 404);
+      const mint = env.SHOWCASE_MINT?.trim();
+      if (!mint || !env.RPC_URL) return json({ error: "NOT_CONFIGURED", message: "Set SHOWCASE_MINT and RPC_URL to enable the showcase curve" }, 404);
+      const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+      const key = new Request(`${url.origin}/api/showcase`);
+      const hit = await cache?.match(key);
+      if (hit) return hit;
+      try {
+        const curve = await handleRequest({ method: "GET", path: `/curve/${mint}`, query: { buyAmount: 0.5 } }, env, { fetchImpl: deps.fetchImpl });
+        const res = json(curve, 200, { "cache-control": "public, max-age=20" });
+        if (cache) ctx.waitUntil(cache.put(key, res.clone()));
+        return res;
+      } catch (e) {
+        return json({ error: "UPSTREAM", message: e instanceof Error ? e.message : String(e) }, 502);
+      }
     }
 
     if (url.pathname === "/openapi.json") {
@@ -107,4 +179,7 @@ export default {
     });
     return createLegacyMcpHandler(server, { route: "/mcp" })(request, env, ctx);
   },
-} satisfies ExportedHandler<Env>;
+  } satisfies ExportedHandler<Env>;
+}
+
+export default createHandler();

@@ -18,16 +18,20 @@
   "type": "module",
   "files": [
     "src",
-    "public",
+    "web",
+    "vite.config.ts",
     "wrangler.toml",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json",
     "dev": "wrangler dev --port 8790",
-    "deploy": "wrangler deploy",
-    "test": "bun test"
+    "dev:web": "vite",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./web/tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json && bun run check",
+    "test": "bun test",
+    "deploy": "vite build && wrangler deploy"
   },
   "dependencies": {
     "@cloudflare/codemode": "0.5.5",
@@ -40,8 +44,12 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251001.0",
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "@types/bun": "^1.1.0",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.7",
     "typescript": "^5.6.0",
+    "vite": "^8.3.5",
     "wrangler": "^4.40.0"
   }
 }

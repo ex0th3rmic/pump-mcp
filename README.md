@@ -7,8 +7,10 @@ access; every API call comes back to the host Worker, which attaches credentials
 allow-listed upstream. Built with [`@cloudflare/codemode`](https://developers.cloudflare.com/agents/tools/codemode/)
 and `agents/mcp`. MIT licensed. Data from pump.fun.
 
-It ships with a small web app at `/`: live status, connect snippets, a route explorer over the merged
-spec, and a token-gated playground that runs the real tools.
+It ships with a web app at `/` (Svelte 5 + Vite, source in `web/`): a live bonding curve for a showcase
+coin, connect snippets for Claude Code, Codex, Cursor, Kimi, Gemini CLI, OpenCode and Claude Desktop,
+example questions with the code they run, and a token-gated playground that runs the real `execute`
+tool. `/llms.txt` says the same for agents.
 
 ## What it exposes
 
@@ -45,8 +47,10 @@ It is shown once. Until approved, everything except the official routes works.
 ```sh
 cp .dev.vars.example .dev.vars        # MCP_BEARER_TOKEN; RPC_URL for chain reads; PUMP_API_KEY when you have one
 bun install
+bun run build                         # builds the web app into ./dist (wrangler serves it)
 bun run dev                           # http://localhost:8790  (web app at /, MCP at /mcp)
-bun test && bun run typecheck
+bun run dev:web                       # optional: Vite with hot reload at :5173, proxying the Worker routes to :8790
+bun test && bun run typecheck         # Worker tests + tsc, then svelte-check
 ```
 
 Connect Claude Code:
@@ -80,8 +84,14 @@ wrangler secret put MCP_BEARER_TOKEN      # required; /mcp answers 503 without i
 wrangler secret put PUMP_API_KEY          # pf_live_... (optional until approved)
 wrangler secret put RPC_URL               # keyed Helius URL; enables /curve and /rpc
 wrangler secret put PUMPPORTAL_API_KEY    # optional; enables /trade/lightning
-bun run deploy                            # pump-codemode-mcp.<subdomain>.workers.dev
+bun run deploy                            # vite build, then wrangler deploy
 ```
+
+`wrangler.toml` deploys to a Workers Custom Domain (`routes = [{ pattern = "...", custom_domain = true }]`);
+change the pattern to your own hostname or set `workers_dev = true` for a `*.workers.dev` URL. Set
+`SHOWCASE_MINT` (a plain var) to any live pump.fun mint and the web app draws its real curve on load
+through `GET /api/showcase`, a public read of that one mint cached for 20 seconds. Leave it empty for a
+static illustration.
 
 Worker Loader bindings (`[[worker_loaders]]`) need the Workers Paid plan in production; `wrangler dev`
 runs them locally for free. Devnet: set `PUMP_API_ORIGIN = "https://api-devnet.pump.fun/v1"`. To serve
@@ -106,12 +116,12 @@ The on-chain, RPC and PumpPortal routes are outside those terms. PumpPortal has 
 
 ## Layout
 
-- `src/index.ts` - Worker entry: `/health`, `/openapi.json`, bearer-gated `/mcp`, static assets for the rest. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.
+- `src/index.ts` - Worker entry: `/health`, `/openapi.json`, `/llms.txt`, `/api/showcase`, bearer-gated `/mcp`, static assets for the rest. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.
 - `src/official.ts` - fetches/merges the official OpenAPI document and matches its path templates.
 - `src/spec.ts` - the non-official routes as OpenAPI 3.1.
 - `src/upstreams.ts` - host-side `request()` router: route table, validation, secret injection, binary-to-base64 for transactions.
 - `src/curve.ts` - bonding-curve PDA derivation (noble ed25519 + sha256) and Borsh decode per the IDL, quotes.
-- `public/index.html` - the web app.
+- `web/` - the web app (Svelte 5). `vite build` writes it to `dist/`, which `[assets]` in `wrangler.toml` serves.
 - `test/` - `bun test`; upstreams are exercised with an injected `fetch`.
 
 ## Caveats

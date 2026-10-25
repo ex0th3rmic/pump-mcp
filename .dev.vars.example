@@ -1,6 +1,7 @@
 # Copy to .dev.vars (git-ignored) for `wrangler dev`.
 MCP_BEARER_TOKEN=dev-token-change-me
 # RPC_URL=https://mainnet.helius-rpc.com/?api-key=...
+# SHOWCASE_MINT=                 # a live pump.fun mint for the web app's hero curve (also a plain var in wrangler.toml)
 # PUMPPORTAL_API_KEY=
 # PUMP_API_KEY=pf_live_...        # from https://developers.pump.fun once your organisation is approved
 # PUMP_OPENAPI_URL=               # set empty to disable the official routes

@@ -11,6 +11,8 @@
   const origin = location.origin;
   const mcpUrl = `${origin}/mcp`;
 
+  const REPO = "https://github.com/ex0th3rmic/pump-mcp";
+  let stars = $state<number | null>(null);
   let health = $state<Health | null>(null);
   let healthFailed = $state(false);
   let showcase = $state<Showcase | null>(null);
@@ -23,6 +25,12 @@
       .then((r) => r.json())
       .then((h: Health) => (health = h))
       .catch(() => (healthFailed = true));
+    fetch("https://api.github.com/repos/ex0th3rmic/pump-mcp", { headers: { accept: "application/vnd.github+json" } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { stargazers_count?: number } | null) => {
+        if (j && typeof j.stargazers_count === "number") stars = j.stargazers_count;
+      })
+      .catch(() => {});
     fetch("/api/showcase")
       .then(async (r) => {
         if (!r.ok) throw new Error(String(r.status));
@@ -53,15 +61,14 @@
 <main class="wrap">
   <header class="top">
     <b>pump-mcp</b>
-    <span class="status">
-      {#if health}
-        <span class="ok">operational</span> · v{health.version} · <a href="/health">/health</a>
-      {:else if healthFailed}
-        <span class="bad">unreachable</span> · <a href="/health">/health</a>
-      {:else}
-        checking…
-      {/if}
-    </span>
+    <nav class="status" aria-label="Project links">
+      <a class="gh" href={REPO} target="_blank" rel="noopener">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub{#if stars !== null}<span class="stars">★ {stars}</span>{/if}
+      </a>
+      <a href="{REPO}/issues/new/choose" target="_blank" rel="noopener">open an issue</a>
+      {#if healthFailed}<span class="bad">server unreachable</span>{:else if health}<span class="dim">v{health.version}</span>{/if}
+    </nav>
   </header>
 
   <section class="hero">
@@ -135,6 +142,10 @@
         <a href="https://www.helius.dev" target="_blank" rel="noopener">Helius</a> (RPC)
       </div>
     </div>
+    <div class="cta">
+      Questions? <a href="{REPO}/issues/new?template=question.yml" target="_blank" rel="noopener">Open an issue</a>, it will get answered and usually turn into a doc fix.
+      Want to add a route, a client snippet or an example? <a href="{REPO}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">CONTRIBUTING.md</a> has the setup and the ground rules.
+    </div>
     <div class="fine">
       <span>Data from pump.fun</span><span>Trades are unsigned until your wallet signs.</span><span>Not affiliated with pump.fun.</span><span>Not financial advice.</span>
     </div>
@@ -165,23 +176,12 @@
     margin-bottom: 40px;
   }
   .top b { color: var(--t); font-weight: 600; }
-  .ok { color: var(--ac); }
-  .ok::before {
-    content: "";
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ac);
-    margin-right: 7px;
-    vertical-align: 1px;
-    animation: pulse 2s infinite;
-  }
+  .status { display: flex; gap: 14px; align-items: center; }
+  .status a { text-decoration: none; color: var(--t2); display: inline-flex; align-items: center; gap: 6px; }
+  .status a:hover { color: var(--t); }
+  .status .stars { color: var(--ac); margin-left: 2px; }
+  .status .dim { color: var(--t3); }
   .bad { color: var(--err); }
-  @keyframes pulse {
-    0% { box-shadow: 0 0 0 0 var(--ac-bg); }
-    70% { box-shadow: 0 0 0 6px transparent; }
-    100% { box-shadow: 0 0 0 0 transparent; }
   }
 
   .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 36px; align-items: start; }
@@ -225,6 +225,8 @@
   .links .k { color: var(--t2); display: inline-block; min-width: 72px; }
   .links a { color: var(--t2); }
   .links a:hover { color: var(--t); }
+  .cta { font-family: var(--sans); font-size: 13px; color: var(--t2); line-height: 1.55; max-width: 80ch; }
+  .cta a { color: var(--t); }
   .fine { display: flex; gap: 18px; flex-wrap: wrap; }
 
   @media (max-width: 700px) {
@@ -246,6 +248,7 @@
   }
   @media (max-width: 420px) {
     .feat { grid-template-columns: 1fr; }
-    .top .status { font-size: 11px; }
+    .top .status { font-size: 11px; gap: 10px; }
+    .top .status .dim { display: none; }
   }
 </style>

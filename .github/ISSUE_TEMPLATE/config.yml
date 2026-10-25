@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: pump.fun Developer API docs
+    url: https://docs.pump.fun
+    about: Questions about the official API itself, keys, scopes and rate limits belong with pump.fun.
+  - name: Cloudflare Code Mode docs
+    url: https://developers.cloudflare.com/agents/tools/codemode/
+    about: How the sandbox and the Worker Loader binding work.

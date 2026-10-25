@@ -42,6 +42,26 @@ function authorized(request: Request, env: Env): boolean {
   return token.length > 0 && timingSafeEqual(token, env.MCP_BEARER_TOKEN);
 }
 
+/** One data point per event: blob1 = kind ("page" | "mcp"), blob2 = path or tool name. No request details. */
+function count(env: Env, kind: "page" | "mcp", what: string): void {
+  try {
+    env.ANALYTICS?.writeDataPoint({ blobs: [kind, what.slice(0, 64)], doubles: [1], indexes: [kind] });
+  } catch {
+    /* counting never breaks a request */
+  }
+}
+
+/** Reads the JSON-RPC method (and tool name for tools/call) off a cloned body. */
+async function mcpCallName(request: Request): Promise<string | null> {
+  try {
+    const msg = (await request.clone().json()) as { method?: string; params?: { name?: string } };
+    if (msg.method === "tools/call") return typeof msg.params?.name === "string" ? msg.params.name : "tools/call";
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json", ...headers } });
 }
@@ -97,6 +117,10 @@ Example execute body:
 - Present results as "Data from pump.fun".
 - Do not retain API data for training. Cache at most 24 hours.
 - Final responses are truncated around 6k tokens: filter in code, return small objects.
+
+## Questions
+
+Open an issue: https://github.com/ex0th3rmic/pump-mcp/issues (templates for questions, bugs, features). Source and contributing guide at https://github.com/ex0th3rmic/pump-mcp.
 `;
 
 export interface HandlerDeps {
@@ -151,7 +175,10 @@ export function createHandler(deps: HandlerDeps = {}) {
     }
 
     if (url.pathname !== "/mcp") {
-      if (env.ASSETS && (request.method === "GET" || request.method === "HEAD")) return env.ASSETS.fetch(request);
+      if (env.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
+        if (request.method === "GET" && !/\.[a-z0-9]+$/i.test(url.pathname)) count(env, "page", url.pathname);
+        return env.ASSETS.fetch(request);
+      }
       return json({ error: "NOT_FOUND" }, 404);
     }
 
@@ -159,7 +186,12 @@ export function createHandler(deps: HandlerDeps = {}) {
       return json({ error: "NOT_CONFIGURED", message: "Set the MCP_BEARER_TOKEN secret before exposing /mcp" }, 503);
     }
     if (!authorized(request, env)) {
+      count(env, "mcp", "unauthorized");
       return json({ error: "UNAUTHORIZED" }, 401, { "www-authenticate": 'Bearer realm="pump-mcp"' });
+    }
+    if (env.ANALYTICS && request.method === "POST") {
+      const name = await mcpCallName(request);
+      if (name) count(env, "mcp", name);
     }
 
     // Loaded lazily: these modules import `cloudflare:workers`, which only exists inside workerd.

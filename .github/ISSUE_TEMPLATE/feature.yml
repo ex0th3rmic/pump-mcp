@@ -1,0 +1,21 @@
+name: Feature request
+description: A route, example, client snippet, or page improvement you would like
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like, and what would an agent do with it?
+      placeholder: A /xyz route so an agent can ..., because ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Worker routes (upstreams, curve, RPC, trading)
+        - Official pump.fun API coverage
+        - Web app
+        - Client snippets / docs
+        - Other

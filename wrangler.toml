@@ -39,5 +39,11 @@ PUMP_API_ORIGIN = "https://api.pump.fun/v1"
 SHOWCASE_MINT = "GPieo9s4rz6ungQnsqyiUrznqDypMgrNXmFSDM2vpump"
 RPC_ALLOWED_METHODS = "getAccountInfo,getBalance,getTokenAccountBalance,getTokenAccountsByOwner,getTokenLargestAccounts,getTokenSupply,getLatestBlockhash,getSignaturesForAddress,getTransaction,getMultipleAccounts,simulateTransaction,sendTransaction,getSignatureStatuses"
 
+# Optional usage counts (page views, MCP calls by tool name). Query with SQL in the dashboard or API;
+# see "Usage stats" in the README. Remove this block to record nothing.
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "pump_mcp_events"
+
 [observability]
 enabled = true

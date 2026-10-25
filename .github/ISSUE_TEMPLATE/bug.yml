@@ -1,0 +1,29 @@
+name: Bug report
+description: Something does not work the way the README or the page says it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you asked the agent or ran, what you expected, what you got. Paste the error text if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: The execute code, if any
+      description: The function the agent wrote, or what you ran in the playground. Remove your wallet address if you prefer.
+      render: js
+  - type: input
+    id: where
+    attributes:
+      label: Where is it running?
+      placeholder: your own Worker (bun run dev / deployed), or a hosted instance
+  - type: checkboxes
+    id: secrets
+    attributes:
+      label: Secrets
+      options:
+        - label: I have not pasted a bearer token, RPC URL, or pump.fun key anywhere in this issue
+          required: true

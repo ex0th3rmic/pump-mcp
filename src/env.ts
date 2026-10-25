@@ -1,8 +1,10 @@
 export interface Env {
   /** Worker Loader binding: spawns the sandbox that runs model-written code. */
   LOADER: WorkerLoader;
-  /** Static web app in ./public (optional: the API works without it). */
+  /** Static web app built to ./dist (optional: the API works without it). */
   ASSETS?: Fetcher;
+  /** Optional usage counts: page views and MCP tool calls by name. Nothing else is recorded. */
+  ANALYTICS?: AnalyticsEngineDataset;
   /** Required. Clients send `Authorization: Bearer <MCP_BEARER_TOKEN>` to /mcp. */
   MCP_BEARER_TOKEN?: string;
 

@@ -1,0 +1,19 @@
+name: Question
+description: Ask how to use pump-mcp, or anything the README and the page left unclear
+labels: [question]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for asking. Questions are welcome here; answering them improves the docs for the next person.
+  - type: textarea
+    id: question
+    attributes:
+      label: What do you want to do, and what is unclear?
+      placeholder: I'm trying to ... and I can't tell whether ...
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Which MCP client are you using?
+      placeholder: Claude Code 2.x, Codex, Cursor, Kimi, Gemini CLI, OpenCode, Claude Desktop, other

@@ -174,6 +174,26 @@ how to run this server:
 
 The on-chain, RPC and PumpPortal routes are outside those terms. PumpPortal has its own.
 
+## Contributing
+
+Open an [issue](https://github.com/ex0th3rmic/pump-mcp/issues) for questions, bugs or ideas; the
+templates ask for what is needed. Pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md)
+for setup and the ground rules (tests first for Worker changes, nothing widens the sandbox without a
+refusal test, examples must run as written).
+
+## Usage stats
+
+With an Analytics Engine dataset bound as `ANALYTICS` (see `wrangler.toml`), the Worker counts page
+views and MCP calls by tool name, nothing else: no IPs, no tokens, no code. Query it in the Cloudflare
+dashboard (Analytics Engine → SQL) or with the SQL API:
+
+```sql
+SELECT blob1 AS kind, blob2 AS what, SUM(_sample_interval) AS n
+FROM pump_mcp_events
+WHERE timestamp > NOW() - INTERVAL '7' DAY
+GROUP BY kind, what ORDER BY n DESC
+```
+
 ## Layout
 
 - `src/index.ts` - Worker entry: `/health`, `/openapi.json`, `/llms.txt`, `/api/showcase`, bearer-gated `/mcp`, static assets for the rest. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.

@@ -83,4 +83,29 @@ describe("worker routes", () => {
     expect(calls).toEqual(["https://rpc.test/?api-key=k"]);
     expect(JSON.stringify(body)).not.toContain("api-key");
   });
+
+  test("usage: a page view and a tools/call are counted in Analytics Engine without the token or body", async () => {
+    const points: Array<{ blobs?: string[]; doubles?: number[]; indexes?: string[] }> = [];
+    const analytics = { writeDataPoint: (p: { blobs?: string[]; doubles?: number[]; indexes?: string[] }) => points.push(p) } as unknown as AnalyticsEngineDataset;
+    const assets = { fetch: async () => new Response("page") } as unknown as Fetcher;
+    const e = env({ ASSETS: assets, ANALYTICS: analytics });
+
+    await worker.fetch(new Request("https://x/"), e, ctx);
+    await worker.fetch(new Request("https://x/assets/app.js"), e, ctx);
+    await worker.fetch(new Request("https://x/mcp", { method: "POST", headers: { authorization: "Bearer s3cret", "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "execute", arguments: { code: "secret code" } } }) }), e, ctx).catch(() => {});
+    await worker.fetch(new Request("https://x/mcp", { method: "POST", headers: { authorization: "Bearer wrong" } }), e, ctx);
+
+    expect(points.map((p) => p.blobs)).toEqual([
+      ["page", "/"],
+      ["mcp", "execute"],
+      ["mcp", "unauthorized"],
+    ]);
+    expect(JSON.stringify(points)).not.toContain("s3cret");
+    expect(JSON.stringify(points)).not.toContain("secret code");
+  });
+
+  test("usage: no ANALYTICS binding means nothing is written and nothing breaks", async () => {
+    const assets = { fetch: async () => new Response("page") } as unknown as Fetcher;
+    expect((await worker.fetch(new Request("https://x/"), env({ ASSETS: assets }), ctx)).status).toBe(200);
+  });
 });

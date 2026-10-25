@@ -1,6 +1,32 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-green-512.png">
+    <img src="docs/logo-512.png" alt="pump-mcp logo" width="112">
+  </picture>
+</p>
+
 <p align="center"><img src="docs/banner.svg" alt="pump-mcp: pump.fun for AI agents. One endpoint." width="100%"></p>
 
-# pump-codemode-mcp
+<p align="center">
+  <a href="https://github.com/ex0th3rmic/pump-mcp/actions/workflows/ci.yml"><img src="https://github.com/ex0th3rmic/pump-mcp/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/ex0th3rmic/pump-mcp?color=19c37d" alt="MIT license"></a>
+  <a href="https://developers.cloudflare.com/agents/tools/codemode/"><img src="https://img.shields.io/badge/built%20on-Cloudflare%20Code%20Mode-f38020?logo=cloudflare&logoColor=white" alt="Built on Cloudflare Code Mode"></a>
+  <a href="https://modelcontextprotocol.io"><img src="https://img.shields.io/badge/MCP-streamable%20HTTP-0b0c0f" alt="MCP streamable HTTP"></a>
+  <a href="https://pump-mcp.ex0therm.dev"><img src="https://img.shields.io/website?url=https%3A%2F%2Fpump-mcp.ex0therm.dev%2Fhealth&label=live&up_color=19c37d" alt="Live"></a>
+  <a href="https://x.com/ex0therm"><img src="https://img.shields.io/badge/X-%40ex0therm-000000?logo=x&logoColor=white" alt="@ex0therm on X"></a>
+</p>
+
+<p align="center">
+  <a href="https://pump-mcp.ex0therm.dev"><b>Website</b></a> ·
+  <a href="#quickstart">Quickstart</a> ·
+  <a href="#why-code-mode">Why Code Mode</a> ·
+  <a href="#configuration">Configuration</a> ·
+  <a href="#roadmap">Roadmap</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="https://github.com/ex0th3rmic/pump-mcp/issues/new/choose">Open an issue</a>
+</p>
+
+# pump-mcp
 
 Self-hosted **Code Mode** MCP server for [pump.fun](https://docs.pump.fun), running on Cloudflare
 Workers. Instead of one MCP tool per endpoint, agents get two tools, `search` and `execute`, and write
@@ -14,7 +40,73 @@ coin, connect snippets for Claude Code, Codex, Cursor, Kimi, Gemini CLI, OpenCod
 example questions with the code they run, and a token-gated playground that runs the real `execute`
 tool. `/llms.txt` says the same for agents.
 
-<p align="center"><img src="docs/screenshot.png" alt="The web app: status bar, live bonding curve for the showcase coin, connect snippets per client, and example questions" width="100%"></p>
+<p align="center"><img src="docs/screenshot.png" alt="The web app: GitHub strip, live bonding curve for the showcase coin, the built-on-Code-Mode note, and the connect steps" width="100%"></p>
+
+## Contents
+
+- [Features](#features)
+- [Quickstart](#quickstart)
+- [Why Code Mode](#why-code-mode)
+- [What it exposes](#what-it-exposes)
+- [Configuration](#configuration)
+- [Run locally](#run-locally)
+- [Deploy](#deploy)
+- [Usage stats](#usage-stats)
+- [Terms you are bound by](#terms-you-are-bound-by)
+- [Roadmap](#roadmap)
+- [FAQ](#faq)
+- [Contributing](#contributing)
+- [Brand](#brand)
+- [Project layout](#project-layout)
+- [Caveats](#caveats)
+- [Acknowledgements](#acknowledgements)
+- [License](#license)
+
+## Features
+
+- **Two tools, the whole API.** `search` over one merged OpenAPI document and `execute` for code the
+  model writes against it. 67 official pump.fun routes plus chain reads and trade building, found on
+  demand instead of squeezed into a tool list.
+- **One round trip per question.** The agent's code loops, filters and joins inside the sandbox; the
+  model reads only the answer.
+- **Keys the model can't reach.** The sandbox has no network and no environment. Secrets are attached in
+  the host Worker, and unknown paths are refused before any fetch.
+- **Chain reads with no middleman.** Bonding curves decoded straight from Solana: price, market cap,
+  graduation progress, buy and sell quotes, for SOL-, USDC- and PUMP-quoted coins.
+- **Non-custodial trades.** Buy, sell and create come back as unsigned transactions for the caller's
+  wallet. Nothing moves until the user signs.
+- **A web app and an `llms.txt`.** Connect snippets for eight clients, runnable examples, a playground,
+  and a plain-text description for agents.
+- **Privacy-respecting usage counts.** Optional Analytics Engine counts of page views and tool calls by
+  name. No IPs, tokens or code.
+
+## Quickstart
+
+**Connect to a running server.** You need its MCP URL and a bearer token from whoever runs it; there
+is no signup. With Claude Code:
+
+```sh
+claude mcp add --transport http pump https://<host>/mcp --header "Authorization: Bearer <token>"
+```
+
+The web app at `https://<host>/` has the exact snippet for Codex, Cursor, Kimi, Gemini CLI, OpenCode,
+Claude Desktop and plain HTTP. Then ask the agent about any pump.fun coin.
+
+**Run your own.** Requires [Bun](https://bun.sh), a Cloudflare account on the Workers Paid plan (for
+the Worker Loader binding) and, for chain reads, a Solana RPC URL such as a keyed Helius endpoint.
+
+```sh
+git clone https://github.com/ex0th3rmic/pump-mcp && cd pump-mcp
+bun install
+openssl rand -hex 32                      # your bearer token; keep it
+npx wrangler login
+npx wrangler secret put MCP_BEARER_TOKEN  # paste the token
+npx wrangler secret put RPC_URL           # paste your RPC URL
+bun run deploy
+```
+
+Change the custom-domain `pattern` in `wrangler.toml` to your own hostname first, or set
+`workers_dev = true` to deploy to a `*.workers.dev` URL. See [Deploy](#deploy) for the rest.
 
 ## Why Code Mode
 
@@ -88,6 +180,9 @@ before any fetch, so model code cannot use the Worker as an open proxy, and `fet
 
 <p align="center"><img src="docs/architecture.svg" alt="How a call flows: the agent posts to /mcp with a bearer token; the host Worker runs the model's code in a Dynamic Worker sandbox with no network; every codemode.request() returns to the host, which attaches secrets and calls Solana RPC, PumpPortal or the pump.fun Developer API" width="100%"></p>
 
+Unauthenticated routes, for people and agents: `GET /` (web app), `GET /health`, `GET /openapi.json`,
+`GET /llms.txt` and `GET /api/showcase`. Everything the agent does goes through `POST /mcp`.
+
 ### Why not the stock pump.fun MCP server?
 
 pump.fun runs one at `https://mcp.pump.fun/mcp` (28 tools, each exactly one API call, stateless, your
@@ -96,11 +191,26 @@ the whole 67-route surface instead of 28 tools; filtering and joins in code so a
 costs one tool call and a few hundred output tokens instead of N round trips; and the on-chain,
 RPC and trading routes next to it, under one token your agents already hold.
 
-## Get a pump.fun key
+## Configuration
 
-Sign in at [developers.pump.fun](https://developers.pump.fun) with your pump.fun account, apply
-(business name, email, use case, scopes), verify the email, wait for approval, then create a key.
-It is shown once. Until approved, everything except the official routes works.
+Secrets are set with `npx wrangler secret put <NAME>`; plain vars live in `wrangler.toml` under `[vars]`.
+For local development put both in `.dev.vars` (see `.dev.vars.example`).
+
+| Name | Kind | Required | What it does |
+|---|---|---|---|
+| `MCP_BEARER_TOKEN` | secret | yes | The one credential clients send to `/mcp`. Without it `/mcp` answers 503. |
+| `RPC_URL` | secret | for chain reads | Solana RPC endpoint. Enables `/curve`, `/rpc` and the showcase curve. |
+| `PUMP_API_KEY` | secret | for official routes | `pf_live_...` key from [developers.pump.fun](https://developers.pump.fun). |
+| `PUMPPORTAL_API_KEY` | secret | no | Enables `/trade/lightning` (custodial). Leave unset for a non-custodial server. |
+| `SHOWCASE_MINT` | var | no | Mint whose live curve the web app draws through `/api/showcase`. Empty shows a sample. |
+| `PUMP_OPENAPI_URL` | var | no | Official spec URL. Set to `""` to serve only the non-official routes. |
+| `PUMP_API_ORIGIN` | var | no | Official API origin; `https://api-devnet.pump.fun/v1` for devnet. |
+| `RPC_ALLOWED_METHODS` | var | no | Comma-separated JSON-RPC methods the sandbox may call through `/rpc`. |
+| `PUMP_FRONTEND_API_ORIGIN` | var | no | Origin for the unofficial frontend-API routes, or a mirror of it. |
+| `PUMPPORTAL_ORIGIN` | var | no | PumpPortal origin used by the trade routes. |
+| `LOADER` | binding | yes | `[[worker_loaders]]`: spawns the sandbox. Needs Workers Paid in production. |
+| `ASSETS` | binding | no | `[assets]`: serves the built web app from `dist/`. |
+| `ANALYTICS` | binding | no | `[[analytics_engine_datasets]]`: usage counts. Remove the block to record nothing. |
 
 ## Run locally
 
@@ -136,6 +246,12 @@ async () => {
 }
 ```
 
+### Get a pump.fun key
+
+Sign in at [developers.pump.fun](https://developers.pump.fun) with your pump.fun account, apply
+(business name, email, use case, scopes), verify the email, wait for approval, then create a key.
+It is shown once. Until approved, everything except the official routes works.
+
 ## Deploy
 
 ```sh
@@ -157,6 +273,22 @@ Worker Loader bindings (`[[worker_loaders]]`) need the Workers Paid plan in prod
 runs them locally for free. Devnet: set `PUMP_API_ORIGIN = "https://api-devnet.pump.fun/v1"`. To serve
 only the non-official routes set `PUMP_OPENAPI_URL = ""`. The bundle is ~5 MB raw / ~1 MB gzip (`agents/mcp`).
 
+To rotate the bearer token, generate a new one and run `wrangler secret put MCP_BEARER_TOKEN` again; the
+old value stops working immediately for every client.
+
+## Usage stats
+
+With an Analytics Engine dataset bound as `ANALYTICS` (see `wrangler.toml`), the Worker counts page
+views and MCP calls by tool name, nothing else: no IPs, no tokens, no code. Query it in the Cloudflare
+dashboard (Analytics Engine → SQL) or with the SQL API:
+
+```sql
+SELECT blob1 AS kind, blob2 AS what, SUM(_sample_interval) AS n
+FROM pump_mcp_events
+WHERE timestamp > NOW() - INTERVAL '7' DAY
+GROUP BY kind, what ORDER BY n DESC
+```
+
 ## Terms you are bound by
 
 Your `pf_live_` key makes you the licensee under the
@@ -174,34 +306,93 @@ how to run this server:
 
 The on-chain, RPC and PumpPortal routes are outside those terms. PumpPortal has its own.
 
+## Roadmap
+
+- [ ] **Trades on pump.fun's official SDK.** Build buy, sell and create with
+  [`@pump-fun/pump-sdk`](https://www.npmjs.com/package/@pump-fun/pump-sdk) (including PumpSwap after
+  graduation) instead of PumpPortal: no 0.5% fee, no third-party dependency, same unsigned-only design.
+- [ ] **Coin launches from the agent.** A metadata upload route (image + JSON pinned to IPFS) so "launch
+  a coin called X with this image" goes from one call to a transaction your wallet signs.
+- [ ] **A self-selecting showcase coin** for the web app, so the hero curve never shows a graduated coin.
+- [ ] **Per-user tokens or OAuth** in front of `/mcp`, with per-token rate limits, for teams that share a
+  deployment.
+- [ ] **The official social API, live.** Waiting on the maintainer's pump.fun key approval.
+
+Ideas and votes welcome in [issues](https://github.com/ex0th3rmic/pump-mcp/issues).
+
+## FAQ
+
+**Is this affiliated with pump.fun?**
+No. It's an independent open-source project that uses pump.fun's public documentation, IDLs and, with a
+key, its Developer API.
+
+**Does it hold my funds or keys?**
+No. Trades come back as unsigned transactions for the wallet you name; only your wallet can sign them.
+The one exception is the optional `/trade/lightning` route, which uses a PumpPortal-custodied wallet and
+is off unless the operator sets `PUMPPORTAL_API_KEY`.
+
+**Where do I get a bearer token?**
+From whoever runs the server. If you run your own, generate one with `openssl rand -hex 32` and set it
+with `wrangler secret put MCP_BEARER_TOKEN`.
+
+**Which clients work?**
+Any MCP client that speaks streamable HTTP with a bearer header: Claude Code, Codex, Cursor, Kimi,
+Gemini CLI, OpenCode, and Claude Desktop through `mcp-remote`. The web app has the exact snippet for each.
+
+**Why do `/coins` and `/trades` return 403?**
+They proxy pump.fun's website API, which sits behind a bot challenge that blocks servers. Use the official
+routes (with a key), `/curve` and `/rpc` for chain data, or point `PUMP_FRONTEND_API_ORIGIN` at a mirror.
+
+**Can it launch coins?**
+`POST /trade/local` with `action: "create"` builds an unsigned create transaction today, given a metadata
+URI you host yourself. First-class launching with metadata upload is on the [roadmap](#roadmap).
+
+**Does it work on devnet?**
+The official routes do, via `PUMP_API_ORIGIN`. Point `RPC_URL` at a devnet RPC for chain reads.
+
 ## Contributing
 
 Open an [issue](https://github.com/ex0th3rmic/pump-mcp/issues) for questions, bugs or ideas; the
 templates ask for what is needed. Pull requests are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md)
 for setup and the ground rules (tests first for Worker changes, nothing widens the sandbox without a
-refusal test, examples must run as written).
+refusal test, examples must run as written). CI runs the tests, typecheck and build on every pull request.
 
-## Usage stats
-
-With an Analytics Engine dataset bound as `ANALYTICS` (see `wrangler.toml`), the Worker counts page
-views and MCP calls by tool name, nothing else: no IPs, no tokens, no code. Query it in the Cloudflare
-dashboard (Analytics Engine → SQL) or with the SQL API:
-
-```sql
-SELECT blob1 AS kind, blob2 AS what, SUM(_sample_interval) AS n
-FROM pump_mcp_events
-WHERE timestamp > NOW() - INTERVAL '7' DAY
-GROUP BY kind, what ORDER BY n DESC
-```
+- [Code of Conduct](CODE_OF_CONDUCT.md) (Contributor Covenant 2.1)
+- [Security policy](SECURITY.md): report vulnerabilities privately, not in issues
+- [Changelog](CHANGELOG.md)
 
 ## Brand
 
-`docs/logo.svg` is the mark (dark) and `docs/logo-green.svg` the green colorway, both 1024×1024 with
-PNG exports at 1024 and 512 (`docs/logo-*.png`) for avatars, social previews or a token image.
-`docs/banner.svg` is the README header and `docs/x-header.svg` / `.png` the 1500×500 X profile header.
-Green is `#19c37d` on `#0b0c0f`.
+The mark is a bonding curve with the coin's position on it. Use it to link to or talk about the project.
 
-## Layout
+<table>
+  <tr>
+    <td align="center" width="50%"><img src="docs/logo-512.png" alt="pump-mcp mark, dark" width="180"></td>
+    <td align="center" width="50%"><img src="docs/logo-green-512.png" alt="pump-mcp mark, green" width="180"></td>
+  </tr>
+  <tr>
+    <td align="center"><b>Dark</b> · primary<br><a href="docs/logo.svg">SVG</a> · <a href="docs/logo-1024.png">PNG 1024</a> · <a href="docs/logo-512.png">PNG 512</a></td>
+    <td align="center"><b>Green</b> · on dark backgrounds<br><a href="docs/logo-green.svg">SVG</a> · <a href="docs/logo-green-1024.png">PNG 1024</a> · <a href="docs/logo-green-512.png">PNG 512</a></td>
+  </tr>
+</table>
+
+| Asset | Size | File |
+|---|---|---|
+| README banner | 1280×400 | [`docs/banner.svg`](docs/banner.svg) |
+| Social preview | 1280×640 | [`docs/social-preview.png`](docs/social-preview.png) · [SVG](docs/social-preview.svg) |
+| X header | 1500×500 | [`docs/x-header.png`](docs/x-header.png) · [SVG](docs/x-header.svg) |
+
+<p align="center"><img src="docs/x-header.png" alt="X header: pump.fun for AI agents. One endpoint." width="100%"></p>
+
+| Color | Hex | Use |
+|---|---|---|
+| Base | `#0b0c0f` | backgrounds |
+| Surface | `#101217` | cards, the mark's tile |
+| Text | `#e6e8eb` | primary text |
+| Green | `#19c37d` | the curve, live state, the one accent |
+| Amber | `#d9a53b` | pending only |
+
+## Project layout
 
 - `src/index.ts` - Worker entry: `/health`, `/openapi.json`, `/llms.txt`, `/api/showcase`, bearer-gated `/mcp`, static assets for the rest. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.
 - `src/official.ts` - fetches/merges the official OpenAPI document and matches its path templates.
@@ -210,9 +401,26 @@ Green is `#19c37d` on `#0b0c0f`.
 - `src/curve.ts` - bonding-curve PDA derivation (noble ed25519 + sha256) and Borsh decode per the IDL, quotes.
 - `web/` - the web app (Svelte 5). `vite build` writes it to `dist/`, which `[assets]` in `wrangler.toml` serves.
 - `test/` - `bun test`; upstreams are exercised with an injected `fetch`.
+- `docs/` - logos, banner, diagrams and screenshots.
 
 ## Caveats
 
 - Code Mode is marked experimental by Cloudflare; `@cloudflare/codemode` and `agents` are pinned.
 - Final MCP responses are truncated around 6k tokens; the tool description tells the model to filter in code.
 - The frontend-API routes are best effort and unofficial.
+
+## Acknowledgements
+
+- [Cloudflare](https://developers.cloudflare.com/agents/tools/codemode/) for Code Mode, the Agents SDK
+  and Dynamic Worker Loader, which make running model-written code safe enough to do on every call.
+- [pump.fun](https://docs.pump.fun) for publishing its Developer API, OpenAPI document,
+  [program docs and IDLs](https://github.com/pump-fun/pump-public-docs).
+- [PumpPortal](https://pumpportal.fun) for the transaction-building API the trade routes use today.
+- [Anthropic](https://www.anthropic.com/engineering/code-execution-with-mcp) for the write-up on code
+  execution with MCP, and the [Model Context Protocol](https://modelcontextprotocol.io).
+- [noble](https://paulmillr.com/noble/) cryptography and [Svelte](https://svelte.dev).
+
+## License
+
+[MIT](LICENSE). Data from pump.fun. Not affiliated with pump.fun. Nothing here is financial advice;
+trades are unsigned until your wallet signs them.

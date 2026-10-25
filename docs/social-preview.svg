@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-label="pump-mcp social preview">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#23272f" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="gridmask"><rect width="1280" height="640" fill="url(#fade)"/></mask>
+    <clipPath id="mark"><rect x="96" y="176" width="288" height="288" rx="63"/></clipPath>
+  </defs>
+  <rect width="1280" height="640" fill="#0b0c0f"/>
+  <rect width="1280" height="640" fill="url(#grid)" mask="url(#gridmask)"/>
+
+  <!-- the mark, same geometry as docs/logo.svg scaled to 288 -->
+  <g clip-path="url(#mark)">
+    <rect x="96" y="176" width="288" height="288" fill="#101217"/>
+    <g transform="translate(96 176) scale(0.28125)">
+      <path d="M128,864 C 352,848 528,792 640,672 C 744,560 824,392 896,176" fill="none" stroke="#19c37d" stroke-width="40" stroke-linecap="round"/>
+      <circle cx="672" cy="632" r="52" fill="#101217" stroke="#19c37d" stroke-width="40"/>
+    </g>
+  </g>
+  <rect x="96.5" y="176.5" width="287" height="287" rx="63" fill="none" stroke="#2e333d"/>
+
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="448" y="262" fill="#ffffff" font-size="64" font-weight="700" letter-spacing="-2">pump-mcp</text>
+    <text x="448" y="330" fill="#e6e8eb" font-size="36" font-weight="600" letter-spacing="-0.5">pump.fun for AI agents. One endpoint.</text>
+    <text x="448" y="380" fill="#9aa3ad" font-size="24">Live bonding curves, quotes, on-chain intel and unsigned</text>
+    <text x="448" y="412" fill="#9aa3ad" font-size="24">trades over MCP, built on Cloudflare Code Mode.</text>
+  </g>
+  <g font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="20" fill="#6b7380">
+    <text x="448" y="470"><tspan fill="#19c37d">github.com/ex0th3rmic/pump-mcp</tspan>  ·  MIT</text>
+  </g>
+</svg>

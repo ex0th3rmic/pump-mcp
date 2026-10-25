@@ -1,5 +1,8 @@
 # Contributing
 
+By taking part you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through
+[private reporting](SECURITY.md), not public issues.
+
 Issues and pull requests are welcome. Questions count: open an issue with the Question template and it
 will get an answer and, usually, a doc fix.
 

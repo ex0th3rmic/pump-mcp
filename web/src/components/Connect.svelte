@@ -43,6 +43,13 @@
     background: var(--bg);
   }
   .tabs button:hover { color: var(--t2); }
+  @media (max-width: 760px) {
+    .tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 1px; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tabs button { flex: 0 0 auto; padding: 10px 14px; font-size: 13px; }
+    .block { border-radius: 0 0 6px 6px; }
+    pre { font-size: 12.5px; }
+  }
   .tabs button.active { color: var(--t); background: var(--s1); }
   .block { position: relative; background: var(--s1); border: 1px solid var(--b); border-radius: 0 6px 6px 6px; }
   .cap { font-family: var(--mono); font-size: 11px; color: var(--t3); padding: 10px 16px 0; }

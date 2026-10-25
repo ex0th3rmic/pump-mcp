@@ -73,7 +73,8 @@
     color: var(--t3);
     margin-bottom: 8px;
   }
-  .ch b { color: var(--t); font-weight: 600; white-space: nowrap; }
+  .ch span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .ch b { color: var(--t); font-weight: 600; white-space: nowrap; flex: 0 0 auto; }
   svg { width: 100%; height: 140px; display: block; }
   .ax { stroke: var(--b); stroke-width: 1; }
   .path {
@@ -107,6 +108,11 @@
     margin-top: 8px;
   }
   .gl span:nth-child(2) { text-align: center; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 760px) {
+    .curve { padding: 12px 12px 10px; }
+    .ch { font-size: 12px; }
+    .gl { font-size: 11.5px; }
+  }
   @media (prefers-reduced-motion: reduce) {
     .path { stroke-dashoffset: 0; }
     .fill { opacity: 0.08; }

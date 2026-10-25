@@ -1,6 +1,8 @@
 <script lang="ts">
   import Connect from "./components/Connect.svelte";
+  import Compare from "./components/Compare.svelte";
   import Curve from "./components/Curve.svelte";
+  import Flow from "./components/Flow.svelte";
   import Examples from "./components/Examples.svelte";
   import Playground from "./components/Playground.svelte";
   import { codeFor, examples } from "./lib/examples";
@@ -68,6 +70,10 @@
       <p class="tag">
         A self-hosted MCP server that gives any agent live bonding-curve data, buy and sell quotes, on-chain intel, unsigned trade building, and the official pump.fun API once the key is in. Many lookups per call, so a decision costs one round trip.
       </p>
+      <a class="cm" href="#why" aria-label="Why Code Mode">
+        <span class="new">new</span>
+        <span>Built on <b>Cloudflare Code Mode</b>, the newest way to run MCP: the agent writes code, a sandbox runs it, one round trip.</span>
+      </a>
       <ul class="feat">
         {#each features as f}
           <li class:pend={!f.on}>{f.on ? f.label : f.off}</li>
@@ -80,22 +86,27 @@
   <h2 class="sec"><span class="n">01</span> connect</h2>
   <Connect {mcpUrl} />
 
-  <h2 class="sec"><span class="n">02</span> things you can ask</h2>
+  <h2 class="sec" id="why"><span class="n">02</span> why Code Mode</h2>
+  <p class="lead why-lead">
+    Most MCP servers give the model one tool per endpoint, so a question that needs eight lookups costs eight round trips and every result flows through the model.
+    <a href="https://developers.cloudflare.com/agents/tools/codemode/" target="_blank" rel="noopener">Cloudflare's Code Mode</a> turns that around: the model writes a few lines of JavaScript, a throwaway sandbox runs them, and only the answer comes back. Same question, both ways:
+  </p>
+  <Compare />
+  <p class="lead after">Models write code far more reliably than they juggle dozens of tool definitions, the keys never leave this Worker, and the whole API surface fits without squeezing it into a tool list. The <a href="https://github.com/ex0th3rmic/pump-mcp#why-code-mode" target="_blank" rel="noopener">README</a> has the full case with sources.</p>
+
+  <h2 class="sec"><span class="n">03</span> things you can ask</h2>
   <p class="lead">Each card is a question for your agent and the code it would write. Click one to load it into the playground below.</p>
   <Examples mint={showcase?.mint ?? null} hasKey={health?.officialKey ?? false} onpick={pick} />
 
-  <h2 class="sec"><span class="n">03</span> how it works</h2>
+  <h2 class="sec"><span class="n">04</span> how it works</h2>
+  <div class="flow"><Flow /></div>
   <div class="steps">
     <div class="step"><b><i>①</i>search</b>The agent asks what's possible and gets matching routes from one merged OpenAPI spec: official API, curve, RPC, trading.</div>
     <div class="step"><b><i>②</i>execute</b>It writes a few lines of JavaScript. The code runs in a sandboxed Worker with no network access of its own.</div>
     <div class="step"><b><i>③</i>host fetches</b>Every request returns to this Worker, which attaches the keys and calls Solana, PumpPortal or pump.fun. Keys never enter the sandbox.</div>
   </div>
-  <p class="why">
-    <b>Why code instead of one tool per route?</b> Models write JavaScript far more reliably than they juggle dozens of tool definitions, and code can loop, filter and join without each intermediate result passing through the model. A question that needs eight lookups becomes one round trip, the model reads only the answer, and the keys never leave this Worker. This is
-    <a href="https://developers.cloudflare.com/agents/tools/codemode/" target="_blank" rel="noopener">Cloudflare's Code Mode</a>; the <a href="https://github.com/ex0th3rmic/pump-mcp#why-code-mode" target="_blank" rel="noopener">README</a> has the longer case.
-  </p>
 
-  <h2 class="sec" bind:this={playground} id="try"><span class="n">04</span> try it</h2>
+  <h2 class="sec" bind:this={playground} id="try"><span class="n">05</span> try it</h2>
   <Playground bind:code authOn={health?.auth ?? true} />
 
   <h2 class="sec">for agents</h2>
@@ -187,8 +198,17 @@
   .step { background: var(--s1); border: 1px solid var(--b); border-radius: 8px; padding: 16px; font-size: 13px; color: var(--t2); line-height: 1.5; }
   .step b { display: block; color: #fff; margin-bottom: 6px; font-size: 14px; font-family: var(--mono); font-weight: 600; }
   .step i { color: var(--ac); font-style: normal; margin-right: 8px; }
-  .why { font-size: 13px; color: var(--t2); line-height: 1.55; margin: 14px 0 0; max-width: 78ch; }
-  .why b { color: var(--t); font-weight: 600; }
+  .why-lead { margin: -4px 0 14px; max-width: 80ch; line-height: 1.55; }
+  .lead.after { margin-top: 14px; max-width: 80ch; line-height: 1.55; }
+  .cm {
+    display: flex; gap: 10px; align-items: flex-start;
+    background: var(--ac-bg); border: 1px solid rgba(25, 195, 125, 0.35); border-radius: 8px;
+    padding: 10px 12px; margin: 0 0 18px; font-size: 13px; color: var(--t2); line-height: 1.45; text-decoration: none; max-width: 46ch;
+  }
+  .cm:hover { border-color: var(--ac); }
+  .cm b { color: var(--t); font-weight: 600; }
+  .cm .new { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ac-ink); background: var(--ac); border-radius: 4px; padding: 2px 6px; margin-top: 2px; font-weight: 700; }
+  .flow { margin-bottom: 10px; }
 
   .agents { font-family: var(--mono); font-size: 13px; color: var(--t2); margin: 0; }
   .foot {
@@ -207,11 +227,25 @@
   .links a:hover { color: var(--t); }
   .fine { display: flex; gap: 18px; flex-wrap: wrap; }
 
+  @media (max-width: 700px) {
+    .flow { display: none; }
+  }
+  @media (min-width: 701px) {
+    .steps { grid-template-columns: repeat(3, 1fr); }
+  }
   @media (max-width: 760px) {
-    main { padding-top: 24px; }
-    .top { margin-bottom: 28px; }
-    .hero { grid-template-columns: 1fr; gap: 24px; }
-    h1 { font-size: 32px; }
+    main { padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: max(40px, env(safe-area-inset-bottom)); }
+    .top { margin-bottom: 26px; }
+    .hero { grid-template-columns: 1fr; gap: 22px; }
+    h1 { font-size: 34px; }
+    .tag { font-size: 15.5px; }
+    .cm { max-width: none; }
     .steps { grid-template-columns: 1fr; }
+    .foot { gap: 10px 14px; }
+    .links .k { display: block; min-width: 0; margin-bottom: 2px; }
+  }
+  @media (max-width: 420px) {
+    .feat { grid-template-columns: 1fr; }
+    .top .status { font-size: 11px; }
   }
 </style>

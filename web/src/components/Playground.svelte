@@ -98,4 +98,9 @@
     word-break: break-word;
   }
   .out.err { color: var(--err); }
+  @media (max-width: 760px) {
+    input, textarea { font-size: 16px; } /* keeps iOS from zooming on focus */
+    .btn { padding: 12px 18px; font-size: 15px; width: 100%; text-align: center; }
+    .row { flex-direction: column; align-items: stretch; }
+  }
 </style>

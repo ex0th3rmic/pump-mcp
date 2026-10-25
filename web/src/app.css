@@ -72,8 +72,10 @@ h2.sec .n { color: var(--ac); }
 }
 
 @media (max-width: 760px) {
-  :root { --gutter: 20px; }
-  h2.sec { margin-top: 44px; }
+  :root { --gutter: max(18px, env(safe-area-inset-left), env(safe-area-inset-right)); }
+  body { font-size: 15px; }
+  h2.sec { margin-top: 40px; }
+  .code-tag { white-space: normal; word-break: break-all; }
 }
 
 @media (prefers-reduced-motion: reduce) {

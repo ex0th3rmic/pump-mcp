@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="pump-mcp mark">
+  <defs>
+    <clipPath id="r"><rect width="1024" height="1024" rx="224"/></clipPath>
+  </defs>
+  <g clip-path="url(#r)">
+    <rect width="1024" height="1024" fill="#0b0c0f"/>
+    <!-- faint grid, fading downward -->
+    <g stroke="#23272f" stroke-width="2" opacity="0.6">
+      <line x1="0" y1="256" x2="1024" y2="256"/><line x1="0" y1="512" x2="1024" y2="512"/><line x1="0" y1="768" x2="1024" y2="768"/>
+      <line x1="256" y1="0" x2="256" y2="1024"/><line x1="512" y1="0" x2="512" y2="1024"/><line x1="768" y1="0" x2="768" y2="1024"/>
+    </g>
+    <!-- bonding curve: price(x) = (vq0 + x)^2 / k, drawn from 0 to graduation -->
+    <path d="M128,864 C 352,848 528,792 640,672 C 744,560 824,392 896,176" fill="none" stroke="#19c37d" stroke-width="40" stroke-linecap="round"/>
+    <!-- marker at ~64% progress -->
+    <circle cx="672" cy="632" r="52" fill="#0b0c0f" stroke="#19c37d" stroke-width="40"/>
+  </g>
+</svg>

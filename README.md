@@ -194,6 +194,12 @@ WHERE timestamp > NOW() - INTERVAL '7' DAY
 GROUP BY kind, what ORDER BY n DESC
 ```
 
+## Brand
+
+`docs/logo.svg` is the mark (dark) and `docs/logo-green.svg` the green colorway, both 1024×1024 with
+PNG exports at 1024 and 512 (`docs/logo-*.png`) for avatars, social previews or a token image.
+`docs/banner.svg` is the README header. Green is `#19c37d` on `#0b0c0f`.
+
 ## Layout
 
 - `src/index.ts` - Worker entry: `/health`, `/openapi.json`, `/llms.txt`, `/api/showcase`, bearer-gated `/mcp`, static assets for the rest. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.

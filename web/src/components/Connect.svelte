@@ -18,6 +18,14 @@
   }
 </script>
 
+<ol class="howto">
+  <li>
+    <b>Get the token.</b> There is no signup. The person running this server generates the bearer token and hands it out privately; it is the only credential, and it is never shown on this page.
+    <span class="self">Running your own copy? Generate one with <code>openssl rand -hex 32</code>, then <code>npx wrangler secret put MCP_BEARER_TOKEN</code> and paste it. Setting a new one invalidates the old one.</span>
+  </li>
+  <li><b>Add the server to your agent.</b> Pick your client below, copy the snippet, and replace <code>&lt;token&gt;</code> with the value you were given.</li>
+  <li><b>Ask about a coin.</b> Start with something like “What's the price and graduation progress of &lt;mint&gt;?” The agent finds the route, writes the code, and answers in one call.</li>
+</ol>
 <div class="tabs" role="tablist" aria-label="MCP client">
   {#each snippets as s (s.id)}
     <button role="tab" aria-selected={s.id === active} class:active={s.id === active} onclick={() => (active = s.id)}>{s.label}</button>
@@ -28,9 +36,14 @@
   <pre><code>{code}</code></pre>
   <button class="copy" onclick={copy} aria-live="polite">{copied ? "copied" : "copy"}</button>
 </div>
-<p class="hint">Replace <code>&lt;token&gt;</code> with the server's bearer token. Then ask the agent about any pump.fun coin.</p>
+<p class="hint">Without a token you can still read <a href="/health">/health</a>, <a href="/openapi.json">/openapi.json</a>, <a href="/llms.txt">/llms.txt</a> and the live curve above. Everything the agent does goes through <code>/mcp</code> and needs it.</p>
 
 <style>
+  .howto { margin: 0 0 16px; padding: 0 0 0 22px; display: grid; gap: 8px; font-size: 13.5px; color: var(--t2); line-height: 1.55; max-width: 80ch; }
+  .howto li::marker { font-family: var(--mono); color: var(--ac); font-weight: 600; }
+  .howto b { color: var(--t); font-weight: 600; }
+  .howto code { font-size: 12px; color: var(--t); background: var(--s1); border: 1px solid var(--b); border-radius: 4px; padding: 1px 5px; }
+  .howto .self { display: block; margin-top: 4px; color: var(--t3); }
   .tabs { display: flex; gap: 2px; margin-bottom: -1px; flex-wrap: wrap; }
   .tabs button {
     font-family: var(--mono);

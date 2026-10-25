@@ -169,8 +169,8 @@
     100% { box-shadow: 0 0 0 0 transparent; }
   }
 
-  .hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 32px; align-items: start; }
-  h1 { font-size: 42px; margin: 0 0 12px; letter-spacing: -0.03em; font-weight: 700; line-height: 1.05; color: #fff; }
+  .hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 36px; align-items: start; }
+  h1 { font-size: 38px; margin: 0 0 12px; letter-spacing: -0.03em; font-weight: 700; line-height: 1.08; color: #fff; }
   .tag { color: var(--t2); font-size: 16px; margin: 0 0 20px; line-height: 1.55; max-width: 46ch; }
   .feat { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; font-family: var(--mono); font-size: 12px; color: var(--t2); }
   .feat li::before { content: "✓ "; color: var(--ac); }

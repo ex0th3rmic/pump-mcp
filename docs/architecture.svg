@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="600" viewBox="0 0 1280 600" role="img" aria-labelledby="t d">
+  <title id="t">How pump-mcp handles a request</title>
+  <desc id="d">An agent calls the MCP endpoint with a bearer token. The host Worker runs the model's JavaScript in a sandboxed Dynamic Worker with no network. Every codemode.request() returns to the host, which attaches secrets and forwards to Solana RPC, PumpPortal or the pump.fun Developer API.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#6b7380"/>
+    </marker>
+    <marker id="arrow-ac" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#19c37d"/>
+    </marker>
+  </defs>
+  <style>
+    .sans { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; }
+    .mono { font-family: SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; }
+    .box { fill: #101217; stroke: #23272f; }
+    .box-ac { fill: #101217; stroke: #19c37d; }
+    .h { fill: #ffffff; font-size: 16px; font-weight: 600; }
+    .s { fill: #9aa3ad; font-size: 13px; }
+    .m { fill: #6b7380; font-size: 12px; }
+    .k { fill: #19c37d; font-size: 12px; }
+    .w { fill: #d9a53b; font-size: 12px; }
+    .edge { stroke: #6b7380; stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+    .edge-ac { stroke: #19c37d; stroke-width: 1.5; fill: none; marker-end: url(#arrow-ac); }
+    .lbl { fill: #9aa3ad; font-size: 12px; }
+  </style>
+
+  <rect width="1280" height="600" rx="16" fill="#0b0c0f"/>
+  <rect x="0.5" y="0.5" width="1279" height="599" rx="16" fill="none" stroke="#23272f"/>
+
+  <text x="48" y="52" class="mono" fill="#6b7380" font-size="12" letter-spacing="1">HOW A CALL FLOWS</text>
+
+  <!-- Agent -->
+  <rect x="48" y="200" width="232" height="200" rx="10" class="box"/>
+  <text x="72" y="236" class="sans h">AI agent</text>
+  <text x="72" y="262" class="sans s">Claude Code, Codex, Cursor,</text>
+  <text x="72" y="282" class="sans s">Kimi, Gemini CLI, OpenCode…</text>
+  <text x="72" y="320" class="mono m">tools: search · execute</text>
+  <text x="72" y="344" class="mono m">writes a few lines of JS</text>
+  <text x="72" y="368" class="mono k">one call, many requests</text>
+
+  <!-- edge agent -> host -->
+  <path d="M280,300 L392,300" class="edge-ac"/>
+  <text x="336" y="286" class="mono lbl" text-anchor="middle">POST /mcp</text>
+  <text x="336" y="322" class="mono lbl" text-anchor="middle" fill="#6b7380">Bearer token</text>
+
+  <!-- Host Worker -->
+  <rect x="400" y="120" width="360" height="360" rx="10" class="box-ac"/>
+  <text x="424" y="156" class="sans h">Host Worker</text>
+  <text x="424" y="178" class="sans s">Cloudflare Workers · pump-codemode-mcp</text>
+  <g class="mono m">
+    <text x="424" y="214">· checks the bearer token</text>
+    <text x="424" y="236">· merges one OpenAPI document</text>
+    <text x="424" y="258">· spawns the sandbox per execute</text>
+    <text x="424" y="280">· routes codemode.request()</text>
+    <text x="424" y="302">· attaches secrets, calls upstreams</text>
+  </g>
+  <g class="mono k">
+    <text x="424" y="340">RPC_URL · PUMP_API_KEY · PUMPPORTAL_API_KEY</text>
+  </g>
+  <text x="424" y="362" class="mono m">secrets live here only</text>
+
+  <!-- Sandbox (nested, inside host area at the bottom) -->
+  <rect x="424" y="384" width="312" height="72" rx="8" fill="#0b0c0f" stroke="#2e333d" stroke-dasharray="4 3"/>
+  <text x="440" y="408" class="sans" fill="#ffffff" font-size="14" font-weight="600">Dynamic Worker sandbox</text>
+  <text x="440" y="428" class="mono m">runs model code · </text>
+  <text x="566" y="428" class="mono w">no network, fetch() throws</text>
+  <text x="440" y="446" class="mono m">exits only via codemode.request() → host</text>
+
+  <!-- edges host -> upstreams -->
+  <path d="M760,210 L848,210" class="edge"/>
+  <path d="M760,300 L848,300" class="edge"/>
+  <path d="M760,390 L848,390" class="edge"/>
+
+  <!-- Upstreams -->
+  <rect x="856" y="168" width="376" height="84" rx="10" class="box"/>
+  <text x="880" y="196" class="sans h">Solana RPC</text>
+  <text x="880" y="216" class="sans s">Helius, keyed · bonding-curve PDA decoded in the Worker</text>
+  <text x="880" y="238" class="mono k">GET /curve/{mint} · POST /rpc (allow-listed)</text>
+
+  <rect x="856" y="258" width="376" height="84" rx="10" class="box"/>
+  <text x="880" y="286" class="sans h">PumpPortal</text>
+  <text x="880" y="306" class="sans s">builds an unsigned transaction for the user's wallet</text>
+  <text x="880" y="328" class="mono k">POST /trade/local · unsigned until you sign</text>
+
+  <rect x="856" y="348" width="376" height="84" rx="10" class="box"/>
+  <text x="880" y="376" class="sans h">pump.fun Developer API</text>
+  <text x="880" y="396" class="sans s">read-only social data · 67 routes · per-organisation key</text>
+  <text x="880" y="418" class="mono w">PUMP_API_KEY · apply at developers.pump.fun</text>
+
+  <!-- footer -->
+  <text x="48" y="548" class="mono m">Unknown paths are refused before any fetch, so model code cannot use the Worker as an open proxy.</text>
+  <text x="1232" y="548" class="mono m" text-anchor="end">Data from pump.fun</text>
+</svg>

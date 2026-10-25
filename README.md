@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/banner.svg" alt="pump-mcp: pump.fun for AI agents. One endpoint." width="100%"></p>
+
 # pump-codemode-mcp
 
 Self-hosted **Code Mode** MCP server for [pump.fun](https://docs.pump.fun), running on Cloudflare
@@ -11,6 +13,8 @@ It ships with a web app at `/` (Svelte 5 + Vite, source in `web/`): a live bondi
 coin, connect snippets for Claude Code, Codex, Cursor, Kimi, Gemini CLI, OpenCode and Claude Desktop,
 example questions with the code they run, and a token-gated playground that runs the real `execute`
 tool. `/llms.txt` says the same for agents.
+
+<p align="center"><img src="docs/screenshot.png" alt="The web app: status bar, live bonding curve for the showcase coin, connect snippets per client, and example questions" width="100%"></p>
 
 ## What it exposes
 
@@ -27,6 +31,8 @@ One merged OpenAPI document, routed per path:
 
 Secrets never reach the sandbox: they are attached in `src/upstreams.ts` only. Unknown paths are refused
 before any fetch, so model code cannot use the Worker as an open proxy, and `fetch()` inside the sandbox throws.
+
+<p align="center"><img src="docs/architecture.svg" alt="How a call flows: the agent posts to /mcp with a bearer token; the host Worker runs the model's code in a Dynamic Worker sandbox with no network; every codemode.request() returns to the host, which attaches secrets and calls Solana RPC, PumpPortal or the pump.fun Developer API" width="100%"></p>
 
 ### Why not the stock pump.fun MCP server?
 

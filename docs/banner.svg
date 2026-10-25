@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400" role="img" aria-labelledby="t d">
+  <title id="t">pump-mcp</title>
+  <desc id="d">pump.fun for AI agents. One endpoint. A bonding-curve chart sits beside the wordmark.</desc>
+  <defs>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#23272f" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="gridmask"><rect width="1280" height="400" fill="url(#fade)"/></mask>
+    <clipPath id="chart"><rect x="736" y="88" width="464" height="176"/></clipPath>
+  </defs>
+
+  <rect width="1280" height="400" rx="16" fill="#0b0c0f"/>
+  <rect width="1280" height="400" rx="16" fill="url(#grid)" mask="url(#gridmask)"/>
+  <rect x="0.5" y="0.5" width="1279" height="399" rx="16" fill="none" stroke="#23272f"/>
+
+  <!-- status line -->
+  <g font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14">
+    <text x="72" y="64" fill="#e6e8eb" font-weight="600">pump-mcp</text>
+    <circle cx="1126" cy="59" r="4" fill="#19c37d"/>
+    <text x="1138" y="64" fill="#19c37d">operational</text>
+  </g>
+
+  <!-- wordmark -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="72" y="172" fill="#ffffff" font-size="60" font-weight="700" letter-spacing="-2">pump.fun for AI agents.</text>
+    <text x="72" y="236" fill="#ffffff" font-size="60" font-weight="700" letter-spacing="-2">One endpoint.</text>
+    <text x="72" y="282" fill="#9aa3ad" font-size="19">Live bonding curves, quotes, on-chain intel and unsigned trades over MCP.</text>
+  </g>
+
+  <!-- feature list -->
+  <g font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#9aa3ad">
+    <text x="72" y="336"><tspan fill="#19c37d">✓</tspan> curve &amp; quotes</text>
+    <text x="252" y="336"><tspan fill="#19c37d">✓</tspan> Solana RPC</text>
+    <text x="392" y="336"><tspan fill="#19c37d">✓</tspan> unsigned trades</text>
+    <text x="572" y="336"><tspan fill="#19c37d">✓</tspan> sandboxed execution</text>
+  </g>
+
+  <!-- curve panel -->
+  <rect x="720" y="72" width="488" height="256" rx="10" fill="#101217" stroke="#23272f"/>
+  <g font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12">
+    <text x="736" y="100" fill="#6b7380">bonding curve · live</text>
+    <text x="1192" y="100" fill="#e6e8eb" font-weight="600" text-anchor="end">64% to graduation</text>
+  </g>
+  <g clip-path="url(#chart)">
+    <g stroke="#23272f" stroke-width="1">
+      <line x1="736" y1="152" x2="1200" y2="152"/><line x1="736" y1="196" x2="1200" y2="196"/><line x1="736" y1="240" x2="1200" y2="240"/>
+    </g>
+    <!-- price(x) = (30+x)^2/k, normalized, x in [0, 85] -->
+    <path d="M744,254 C 860,246 940,228 1004,204 C 1070,180 1126,146 1192,110 L1192,264 L744,264 Z" fill="#19c37d" fill-opacity="0.08"/>
+    <path d="M744,254 C 860,246 940,228 1004,204 C 1070,180 1126,146 1192,110" fill="none" stroke="#19c37d" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="886" cy="238" r="5" fill="#0b0c0f" stroke="#19c37d" stroke-width="2.5"/>
+  </g>
+  <rect x="736" y="278" width="464" height="4" rx="2" fill="#23272f"/>
+  <rect x="736" y="278" width="297" height="4" rx="2" fill="#19c37d"/>
+  <g font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11" fill="#6b7380">
+    <text x="736" y="306">0 SOL</text>
+    <text x="968" y="306" fill="#9aa3ad" text-anchor="middle">0.0000000985 SOL · mcap 98.5</text>
+    <text x="1200" y="306" text-anchor="end">85 SOL</text>
+  </g>
+</svg>

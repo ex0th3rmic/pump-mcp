@@ -90,6 +90,10 @@
     <div class="step"><b><i>②</i>execute</b>It writes a few lines of JavaScript. The code runs in a sandboxed Worker with no network access of its own.</div>
     <div class="step"><b><i>③</i>host fetches</b>Every request returns to this Worker, which attaches the keys and calls Solana, PumpPortal or pump.fun. Keys never enter the sandbox.</div>
   </div>
+  <p class="why">
+    <b>Why code instead of one tool per route?</b> Models write JavaScript far more reliably than they juggle dozens of tool definitions, and code can loop, filter and join without each intermediate result passing through the model. A question that needs eight lookups becomes one round trip, the model reads only the answer, and the keys never leave this Worker. This is
+    <a href="https://developers.cloudflare.com/agents/tools/codemode/" target="_blank" rel="noopener">Cloudflare's Code Mode</a>; the <a href="https://github.com/ex0th3rmic/pump-mcp#why-code-mode" target="_blank" rel="noopener">README</a> has the longer case.
+  </p>
 
   <h2 class="sec" bind:this={playground} id="try"><span class="n">04</span> try it</h2>
   <Playground bind:code authOn={health?.auth ?? true} />
@@ -183,6 +187,8 @@
   .step { background: var(--s1); border: 1px solid var(--b); border-radius: 8px; padding: 16px; font-size: 13px; color: var(--t2); line-height: 1.5; }
   .step b { display: block; color: #fff; margin-bottom: 6px; font-size: 14px; font-family: var(--mono); font-weight: 600; }
   .step i { color: var(--ac); font-style: normal; margin-right: 8px; }
+  .why { font-size: 13px; color: var(--t2); line-height: 1.55; margin: 14px 0 0; max-width: 78ch; }
+  .why b { color: var(--t); font-weight: 600; }
 
   .agents { font-family: var(--mono); font-size: 13px; color: var(--t2); margin: 0; }
   .foot {

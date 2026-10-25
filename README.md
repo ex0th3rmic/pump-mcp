@@ -16,6 +16,60 @@ tool. `/llms.txt` says the same for agents.
 
 <p align="center"><img src="docs/screenshot.png" alt="The web app: status bar, live bonding curve for the showcase coin, connect snippets per client, and example questions" width="100%"></p>
 
+## Why Code Mode
+
+The usual way to put an API in front of an agent is one MCP tool per endpoint. The model gets a list of
+tool definitions, picks one, waits, reads the result back into its context, picks the next. pump.fun's
+Developer API alone has 67 routes; add the on-chain, RPC and trading routes and that is a tool list most
+clients handle badly, and every question that needs more than one lookup costs a round trip per lookup,
+with every intermediate result flowing through the model on the way.
+
+Code Mode turns that around. This server exposes two tools. `search` lets the model inspect one merged
+OpenAPI document. `execute` takes a JavaScript function the model writes against it. That function runs
+in a Dynamic Worker: a fresh V8 isolate spawned for that one call, with no network of its own, where
+`fetch()` throws. The only way out is `codemode.request()`, which returns to the host Worker, where the
+credentials live and where every path is checked against the route table before anything is fetched.
+When the function returns, the isolate is discarded.
+
+What that buys the person on the other end of the agent:
+
+- **One question, one round trip.** "Check these 8 coins, rank them by graduation, quote 0.3 SOL on
+  each" is eight curve reads. As tools, that is eight model turns, eight results read back, and a model
+  doing the comparison by hand. As code it is one `Promise.all`, a `.sort()`, and a ten-line answer.
+  Faster to the user, a fraction of the tokens, and no chance of a mis-copied number along the way.
+- **The model only reads the answer.** Intermediate data stays in the sandbox. A long trade list is
+  filtered down to the rows that matter before the model sees anything, and the ~6k-token cap on MCP
+  responses stops being a wall. Anthropic measured the same pattern on a document-moving task:
+  150,000 tokens through tool calls versus 2,000 through code execution, a 98.7% reduction.
+- **Models are better at this.** Cloudflare's case for Code Mode is that models have seen enormous
+  amounts of real JavaScript and very few real tool-call transcripts, so given a typed API they chain,
+  loop and branch reliably, while given eighty tools they fumble. That is an argument from training
+  data rather than a published benchmark, but it matches what we see in practice here.
+- **The keys are unreachable.** The model's code cannot read `RPC_URL`, `PUMP_API_KEY` or the
+  PumpPortal key, cannot open a socket, and cannot call a path outside the route table. Those are
+  properties of the sandbox, not of a prompt asking the model to behave.
+- **The whole surface, not a curated slice.** All 67 official routes plus curve, RPC and trade building
+  are available, found on demand through `search`, instead of a subset squeezed into a tool list.
+- **Isolation that is cheap enough to do every time.** Isolates start in milliseconds and use a few
+  megabytes, so a sandbox per call is affordable in a way containers are not.
+
+The same question, both ways:
+
+| | One tool per endpoint | Code Mode, this server |
+|---|---|---|
+| Tool definitions in context | 70+ | 2 |
+| "Rank 8 coins by graduation" | 8 model turns, 8 results read back | 1 turn, 1 result |
+| A 10,000-row list | the model reads it, or it does not fit | code filters it, the model reads a summary |
+| Where secrets live | often in tool arguments or the agent's env | host Worker only; the sandbox has no network |
+| Adding a route | a new tool, a new schema, clients reload | the OpenAPI document grows, nothing else changes |
+
+The trade-off is that running model-written code needs a real sandbox, and this server pays for that
+with Cloudflare's Worker Loader, which is still marked experimental and needs the Workers Paid plan in
+production. Further reading: Cloudflare's [Code Mode announcement](https://blog.cloudflare.com/code-mode/)
+and [docs](https://developers.cloudflare.com/agents/tools/codemode/), Anthropic's
+[Code execution with MCP](https://www.anthropic.com/engineering/code-execution-with-mcp), and the
+[Model Context Protocol](https://modelcontextprotocol.io) specification.
+
 ## What it exposes
 
 One merged OpenAPI document, routed per path:

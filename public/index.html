@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>pump Code Mode MCP</title>
+<meta name="description" content="Self-hosted Code Mode MCP server for pump.fun: the official Developer API plus on-chain and trading routes, two tools, one Worker.">
+<style>
+:root{--bg:#f7f7f5;--fg:#141414;--muted:#6b6b66;--card:#fff;--line:#e4e4df;--accent:#1d9e75;--accent-fg:#fff;--warn:#b86e00;--bad:#c0392b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--get:#2563eb;--post:#b45309}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#101212;--fg:#ececea;--muted:#9a9a94;--card:#181b1b;--line:#2a2e2e;--accent:#3bbf93;--accent-fg:#06110c;--get:#7aa2ff;--post:#f0b35c}}
+:root[data-theme=dark]{--bg:#101212;--fg:#ececea;--muted:#9a9a94;--card:#181b1b;--line:#2a2e2e;--accent:#3bbf93;--accent-fg:#06110c;--get:#7aa2ff;--post:#f0b35c}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;margin:0 0 4px}h2{font-size:18px;margin:32px 0 12px}p{margin:8px 0}.muted{color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.badge{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.on .dot{background:var(--accent)}.off .dot{background:var(--bad)}
+code,pre,textarea,input{font-family:var(--mono)}pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:13px;margin:8px 0}
+code{font-size:13px;background:var(--bg);padding:1px 5px;border-radius:4px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:8px}.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:8px 10px;cursor:pointer;font:inherit}.tabs button[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+input[type=search],input[type=password],textarea{width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:13px}
+textarea{min-height:200px;resize:vertical}
+button.primary{background:var(--accent);color:var(--accent-fg);border:0;border-radius:8px;padding:10px 16px;font:inherit;font-weight:600;cursor:pointer}button.ghost{background:none;border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:10px 16px;font:inherit;cursor:pointer}
+button:disabled{opacity:.5;cursor:default}
+.routes{display:grid;gap:4px;margin-top:8px}.route{display:grid;grid-template-columns:56px 1fr;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer}.route:hover{border-color:var(--accent)}
+.m{font-family:var(--mono);font-size:12px;font-weight:700}.m.GET{color:var(--get)}.m.POST{color:var(--post)}
+.path{font-family:var(--mono);font-size:13px;word-break:break-all}.sum{color:var(--muted);font-size:13px}
+details{margin-top:6px}summary{cursor:pointer;color:var(--muted)}
+.tag{font-size:12px;color:var(--muted);margin:14px 0 4px;text-transform:uppercase;letter-spacing:.04em}
+.note{border-left:3px solid var(--warn);padding:8px 12px;background:var(--card);border-radius:0 8px 8px 0}
+@media (max-width:640px){.route{grid-template-columns:48px 1fr}}
+</style>
+</head>
+<body>
+<main>
+  <h1>pump Code Mode MCP</h1>
+  <p class="muted">A self-hosted <a href="https://developers.cloudflare.com/agents/tools/codemode/">Code Mode</a> MCP server for <a href="https://docs.pump.fun">pump.fun</a>. Two tools, <code>search</code> and <code>execute</code>, over the official Developer API plus on-chain bonding-curve reads, Solana RPC and unsigned trade building. Data from pump.fun.</p>
+
+  <h2>Status</h2>
+  <div class="card" id="status"><span class="muted">Loading /health…</span></div>
+
+  <h2>Connect</h2>
+  <div class="card">
+    <p class="muted">Endpoint <code id="mcpUrl"></code>. Every request needs the operator's bearer token (<code>MCP_BEARER_TOKEN</code>). The pump.fun key never leaves the Worker.</p>
+    <div class="tabs" role="tablist" id="connectTabs">
+      <button role="tab" aria-selected="true" data-tab="claude-code">Claude Code</button>
+      <button role="tab" data-tab="desktop">Claude Desktop</button>
+      <button role="tab" data-tab="cursor">Cursor</button>
+    </div>
+    <pre id="connectSnippet"></pre>
+  </div>
+
+  <h2>Routes</h2>
+  <div class="card">
+    <input type="search" id="routeFilter" placeholder="Filter routes (path, summary, tag)…" aria-label="Filter routes">
+    <p class="muted" id="routeCount"></p>
+    <div id="routes"></div>
+  </div>
+
+  <h2>Playground</h2>
+  <div class="card">
+    <p class="muted">Runs the real MCP tools from this page. Your token is stored only in this browser (localStorage) and sent only to this origin.</p>
+    <label class="muted" for="token">Bearer token</label>
+    <input type="password" id="token" autocomplete="off" placeholder="MCP_BEARER_TOKEN">
+    <label class="muted" for="code" style="display:block;margin-top:10px">Code (async arrow function; <code>codemode.spec()</code> and <code>codemode.request()</code> are available)</label>
+    <textarea id="code" spellcheck="false"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button class="primary" id="runExecute">Run execute</button>
+      <button class="ghost" id="runSearch">Run search</button>
+      <button class="ghost" id="loadExample">Example: curve + unsigned buy</button>
+      <button class="ghost" id="loadExample2">Example: official profile lookup</button>
+      <span class="muted" id="runStatus"></span>
+    </div>
+    <pre id="output" aria-live="polite"></pre>
+  </div>
+
+  <h2>Before you deploy this for others</h2>
+  <div class="note">
+    <p>The <a href="https://docs.pump.fun/terms/">pump.fun Developer API Terms</a> bind the key holder: keys are per organisation and may not be shared (6.4); you may not offer third parties programmatic access to API data (8.3b); cache API data for at most 24 hours (8.7); show “Data from pump.fun” to end users (10.3). Run this server for your own organisation’s agents and apps, behind your own <code>MCP_BEARER_TOKEN</code>. The on-chain, RPC and PumpPortal routes are not covered by those terms but PumpPortal has its own.</p>
+  </div>
+  <p class="muted" style="margin-top:24px">MIT · Built with <code>@cloudflare/codemode</code> and <code>agents</code>.</p>
+</main>
+<script>
+(() => {
+  const origin = location.origin;
+  const mcpUrl = origin + "/mcp";
+  document.getElementById("mcpUrl").textContent = mcpUrl;
+
+  // ---- status
+  fetch("/health").then(r => r.json()).then(h => {
+    const b = (label, on, offText) => `<span class="badge ${on ? "on" : "off"}"><span class="dot"></span>${label}: ${on ? "on" : (offText || "off")}</span>`;
+    document.getElementById("status").innerHTML = `<div class="row">
+      <span class="badge on"><span class="dot"></span>mode: ${h.mode}</span>
+      ${b("official pump.fun key", h.officialKey, "not set")}
+      ${b("chain reads (/curve, /rpc)", h.rpc, "RPC_URL not set")}
+      ${b("lightning trading", h.lightning, "disabled")}
+      ${b("/mcp auth", h.auth, "MCP_BEARER_TOKEN missing")}
+      <span class="badge"><span class="dot"></span>v${h.version}</span></div>`;
+  }).catch(() => { document.getElementById("status").textContent = "Could not reach /health."; });
+
+  // ---- connect snippets
+  const snippets = {
+    "claude-code": `claude mcp add --transport http pump ${mcpUrl} \\\n  --header "Authorization: Bearer <MCP_BEARER_TOKEN>"`,
+    desktop: `{\n  "mcpServers": {\n    "pump": {\n      "url": "${mcpUrl}",\n      "headers": { "Authorization": "Bearer <MCP_BEARER_TOKEN>" }\n    }\n  }\n}`,
+    cursor: `// .cursor/mcp.json\n{\n  "mcpServers": {\n    "pump": {\n      "url": "${mcpUrl}",\n      "headers": { "Authorization": "Bearer <MCP_BEARER_TOKEN>" }\n    }\n  }\n}`,
+  };
+  const snip = document.getElementById("connectSnippet");
+  const tabs = document.getElementById("connectTabs");
+  const showTab = (k) => { snip.textContent = snippets[k]; for (const t of tabs.querySelectorAll("button")) t.setAttribute("aria-selected", String(t.dataset.tab === k)); };
+  tabs.addEventListener("click", (e) => { const t = e.target.closest("button"); if (t) showTab(t.dataset.tab); });
+  showTab("claude-code");
+
+  // ---- routes
+  let ops = [];
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  fetch("/openapi.json").then(r => r.json()).then(spec => {
+    for (const [path, item] of Object.entries(spec.paths || {})) {
+      for (const [m, op] of Object.entries(item)) {
+        if (!["get", "post", "put", "patch", "delete"].includes(m)) continue;
+        ops.push({ method: m.toUpperCase(), path, summary: op.summary || op.description || "", tag: (op.tags || ["other"])[0], params: op.parameters || [], keyless: Array.isArray(op.security) && op.security.length === 0, body: op.requestBody });
+      }
+    }
+    renderRoutes("");
+  }).catch(() => { document.getElementById("routes").textContent = "Could not load /openapi.json."; });
+  function renderRoutes(q) {
+    q = q.trim().toLowerCase();
+    const list = ops.filter(o => !q || `${o.method} ${o.path} ${o.summary} ${o.tag}`.toLowerCase().includes(q));
+    document.getElementById("routeCount").textContent = `${list.length} of ${ops.length} operations`;
+    const byTag = new Map();
+    for (const o of list) { if (!byTag.has(o.tag)) byTag.set(o.tag, []); byTag.get(o.tag).push(o); }
+    let html = "";
+    for (const [tag, items] of byTag) {
+      html += `<div class="tag">${esc(tag)}${items[0].keyless ? " · no pump.fun key needed" : " · official, pf_live_ key"}</div><div class="routes">`;
+      for (const o of items) {
+        const params = o.params.map(p => `<code>${esc(p.name)}</code>${p.required ? "*" : ""} <span class="muted">(${esc(p.in)})</span>${p.description ? " – " + esc(p.description) : ""}`).join("<br>");
+        html += `<div class="route" data-path="${esc(o.path)}" data-method="${o.method}"><span class="m ${o.method}">${o.method}</span><div><div class="path">${esc(o.path)}</div><div class="sum">${esc(o.summary)}</div>${params || o.body ? `<details><summary>parameters</summary><div class="sum">${params}${o.body ? "<br>request body: JSON" : ""}</div></details>` : ""}</div></div>`;
+      }
+      html += "</div>";
+    }
+    document.getElementById("routes").innerHTML = html || `<p class="muted">No routes match.</p>`;
+  }
+  document.getElementById("routeFilter").addEventListener("input", (e) => renderRoutes(e.target.value));
+  document.getElementById("routes").addEventListener("click", (e) => {
+    const r = e.target.closest(".route"); if (!r || e.target.closest("details")) return;
+    const q = r.dataset.path.replace(/\{(\w+)\}/g, "<$1>");
+    codeEl.value = `async () => {\n  return codemode.request({ method: "${r.dataset.method}", path: "${q}"${r.dataset.method === "POST" ? ", body: {}" : ", query: {}"} });\n}`;
+    codeEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  });
+
+  // ---- playground
+  const tokenEl = document.getElementById("token"), codeEl = document.getElementById("code"), out = document.getElementById("output"), status = document.getElementById("runStatus");
+  try { tokenEl.value = localStorage.getItem("pump-mcp-token") || ""; } catch {}
+  tokenEl.addEventListener("change", () => { try { localStorage.setItem("pump-mcp-token", tokenEl.value); } catch {} });
+  const EXAMPLE1 = `async () => {\n  const mint = "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump";\n  const curve = await codemode.request({ method: "GET", path: \`/curve/\${mint}\`, query: { buyAmount: 0.1 } });\n  if (curve.complete) return { note: "graduated, trades on PumpSwap", curve };\n  const tx = await codemode.request({\n    method: "POST", path: "/trade/local",\n    body: { publicKey: "<YOUR_WALLET>", action: "buy", mint, amount: 0.1, denominatedInSol: true, slippage: 10, priorityFee: 0.0005, pool: "auto" },\n  });\n  return { quoteAsset: curve.quote.symbol, price: curve.priceInQuote, buyQuote: curve.buyQuote, unsignedTxBytes: tx.bytes };\n}`;
+  const EXAMPLE2 = `async () => {\n  // Official Developer API (needs the operator's pf_live_ key). One call, then filter in code.\n  const user = await codemode.request({ method: "GET", path: "/users/<userIdOrWallet>" });\n  const followers = await codemode.request({ method: "GET", path: \`/following/v3/followers/count/\${user.id}\` });\n  return { username: user.username, followers };\n}`;
+  codeEl.value = EXAMPLE1;
+  document.getElementById("loadExample").onclick = () => { codeEl.value = EXAMPLE1; };
+  document.getElementById("loadExample2").onclick = () => { codeEl.value = EXAMPLE2; };
+
+  let sessionId = null;
+  async function rpc(method, params, id) {
+    const headers = { "content-type": "application/json", accept: "application/json, text/event-stream", authorization: `Bearer ${tokenEl.value.trim()}` };
+    if (sessionId) headers["mcp-session-id"] = sessionId;
+    const res = await fetch("/mcp", { method: "POST", headers, body: JSON.stringify(id === undefined ? { jsonrpc: "2.0", method, params } : { jsonrpc: "2.0", id, method, params }) });
+    sessionId = res.headers.get("mcp-session-id") || sessionId;
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
+    if (id === undefined) return null;
+    const lines = text.split("\n").filter(l => l.startsWith("data:"));
+    const msgs = lines.length ? lines.map(l => JSON.parse(l.slice(5).trim())) : [JSON.parse(text)];
+    const msg = msgs.find(m => m.id === id) || msgs[0];
+    if (msg.error) throw new Error(JSON.stringify(msg.error));
+    return msg.result;
+  }
+  async function ensureSession() {
+    if (sessionId) return;
+    await rpc("initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "pump-mcp-playground", version: "0.1" } }, 1);
+    await rpc("notifications/initialized", {});
+  }
+  const SEARCH_SNIPPET = `async () => {\n  const s = await codemode.spec();\n  return Object.entries(s.paths).flatMap(([p, item]) => Object.entries(item).map(([m, op]) => \`\${m.toUpperCase()} \${p} - \${op.summary ?? ""}\`));\n}`;
+  async function run(tool) {
+    if (!tokenEl.value.trim()) { out.textContent = "Enter the bearer token first."; return; }
+    // `search` only has codemode.spec(); if the editor holds an execute snippet, list the routes instead.
+    const code = tool === "search" && /codemode\.request/.test(codeEl.value) ? SEARCH_SNIPPET : codeEl.value;
+    for (const b of document.querySelectorAll("button")) b.disabled = true;
+    status.textContent = `running ${tool}…`; out.textContent = "";
+    const t0 = performance.now();
+    try {
+      await ensureSession();
+      const r = await rpc("tools/call", { name: tool, arguments: { code } }, Date.now());
+      const text = (r.content || []).map(c => c.text ?? JSON.stringify(c)).join("\n");
+      try { out.textContent = JSON.stringify(JSON.parse(text), null, 2); } catch { out.textContent = text; }
+      if (r.isError) out.textContent = "[tool error]\n" + out.textContent;
+      status.textContent = `${tool} finished in ${Math.round(performance.now() - t0)} ms`;
+    } catch (e) {
+      sessionId = null; out.textContent = String(e.message || e); status.textContent = "failed";
+    } finally { for (const b of document.querySelectorAll("button")) b.disabled = false; }
+  }
+  document.getElementById("runExecute").onclick = () => run("execute");
+  document.getElementById("runSearch").onclick = () => run("search");
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "name": "pump-codemode-mcp",
+  "version": "0.1.0",
+  "description": "Self-hosted Code Mode MCP server for pump.fun on Cloudflare Workers: official Developer API + on-chain bonding curves + Solana RPC + unsigned trade building, as two tools (search, execute).",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ex0th3rmic/pump-mcp.git"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "cloudflare-workers",
+    "codemode",
+    "pump.fun",
+    "solana"
+  ],
+  "type": "module",
+  "files": [
+    "src",
+    "public",
+    "wrangler.toml",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "dev": "wrangler dev --port 8790",
+    "deploy": "wrangler deploy",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@cloudflare/codemode": "0.5.5",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "@scure/base": "^1.2.6",
+    "agents": "0.30.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251001.0",
+    "@types/bun": "^1.1.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.40.0"
+  }
+}

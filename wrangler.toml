@@ -1,0 +1,40 @@
+name = "pump-codemode-mcp"
+# Deploys to the account `wrangler login` selected (or CLOUDFLARE_ACCOUNT_ID). Rename the Worker freely.
+main = "src/index.ts"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+# Served on a Workers Custom Domain: wrangler creates the DNS record and certificate on deploy.
+routes = [{ pattern = "pump-mcp.ex0therm.dev", custom_domain = true }]
+upload_source_maps = true
+
+# Code Mode runs model-written JavaScript inside a sandboxed Dynamic Worker. The sandbox has no
+# network access of its own: every API call goes through `src/upstreams.ts` on the host, where
+# secrets are attached. The LOADER binding is what spawns those sandboxes.
+[[worker_loaders]]
+binding = "LOADER"
+
+# The web app (route explorer, connect snippets, playground) lives in ./public and is served for
+# every path the Worker does not handle itself (/mcp, /health, /openapi.json).
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# Plain vars. Secrets (never commit): `wrangler secret put MCP_BEARER_TOKEN` (required),
+# `RPC_URL` (keyed Helius URL, enables /rpc), `PUMPPORTAL_API_KEY` (enables /trade/lightning),
+# `PUMP_API_KEY` (official platform key once developers.pump.fun ships).
+[vars]
+# Community mode upstreams (used while the official developer platform is not available).
+PUMP_FRONTEND_API_ORIGIN = "https://frontend-api-v3.pump.fun"
+PUMPPORTAL_ORIGIN = "https://pumpportal.fun"
+# Official pump.fun Developer API (docs.pump.fun). The public OpenAPI document is merged with the
+# community routes; its paths are forwarded to PUMP_API_ORIGIN with `Authorization: Bearer ${PUMP_API_KEY}`
+# (secret; a pf_live_ key from the console at https://developers.pump.fun, approval required).
+# Set PUMP_OPENAPI_URL = "" to serve the community routes only. Devnet: https://api-devnet.pump.fun/v1.
+PUMP_OPENAPI_URL = "https://docs.pump.fun/openapi.public.json"
+PUMP_API_ORIGIN = "https://api.pump.fun/v1"
+# JSON-RPC methods sandbox code may call through POST /rpc (comma separated).
+RPC_ALLOWED_METHODS = "getAccountInfo,getBalance,getTokenAccountBalance,getTokenAccountsByOwner,getTokenLargestAccounts,getTokenSupply,getLatestBlockhash,getSignaturesForAddress,getTransaction,getMultipleAccounts,simulateTransaction,sendTransaction,getSignatureStatuses"
+
+[observability]
+enabled = true

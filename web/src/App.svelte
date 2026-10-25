@@ -12,6 +12,7 @@
   const mcpUrl = `${origin}/mcp`;
 
   const REPO = "https://github.com/ex0th3rmic/pump-mcp";
+  const X = "https://x.com/ex0therm";
   let stars = $state<number | null>(null);
   let health = $state<Health | null>(null);
   let healthFailed = $state(false);
@@ -67,6 +68,10 @@
         GitHub{#if stars !== null}<span class="stars">★ {stars}</span>{/if}
       </a>
       <a href="{REPO}/issues/new/choose" target="_blank" rel="noopener">open an issue</a>
+      <a class="x" href={X} target="_blank" rel="noopener" aria-label="ex0therm on X">
+        <svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+        @ex0therm
+      </a>
       {#if healthFailed}<span class="bad">server unreachable</span>{:else if health}<span class="dim">v{health.version}</span>{/if}
     </nav>
   </header>
@@ -125,7 +130,8 @@
     <div class="links">
       <div>
         <span class="k">source</span>
-        <a href="https://github.com/ex0th3rmic/pump-mcp" target="_blank" rel="noopener">github.com/ex0th3rmic/pump-mcp</a> · MIT · self-host it on your own Cloudflare account
+        <a href="https://github.com/ex0th3rmic/pump-mcp" target="_blank" rel="noopener">github.com/ex0th3rmic/pump-mcp</a> · MIT · self-host it on your own Cloudflare account ·
+        <a href={X} target="_blank" rel="noopener">@ex0therm on X</a>
       </div>
       <div>
         <span class="k">pump.fun</span>

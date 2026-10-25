@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="500" viewBox="0 0 1500 500" role="img" aria-label="pump-mcp X header">
+  <defs>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#23272f" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <mask id="gridmask"><rect width="1500" height="500" fill="url(#fade)"/></mask>
+  </defs>
+
+  <rect width="1500" height="500" fill="#0b0c0f"/>
+  <rect width="1500" height="500" fill="url(#grid)" mask="url(#gridmask)"/>
+
+  <!-- curve, right half; the avatar sits bottom-left so nothing important lives there -->
+  <path d="M760,420 C 940,410 1080,370 1180,300 C 1280,228 1360,140 1420,60" fill="none" stroke="#19c37d" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="1200" cy="286" r="11" fill="#0b0c0f" stroke="#19c37d" stroke-width="6"/>
+
+  <!-- wordmark, middle band (safe from top/bottom crop on phones) -->
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <text x="110" y="222" fill="#ffffff" font-size="76" font-weight="700" letter-spacing="-3">pump.fun for AI agents.</text>
+    <text x="110" y="300" fill="#ffffff" font-size="76" font-weight="700" letter-spacing="-3">One endpoint.</text>
+  </g>
+  <g font-family="SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="19" fill="#9aa3ad">
+    <text x="112" y="350">built on Cloudflare Code Mode · open source · pump-mcp.ex0therm.dev</text>
+  </g>
+</svg>

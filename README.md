@@ -198,7 +198,8 @@ GROUP BY kind, what ORDER BY n DESC
 
 `docs/logo.svg` is the mark (dark) and `docs/logo-green.svg` the green colorway, both 1024×1024 with
 PNG exports at 1024 and 512 (`docs/logo-*.png`) for avatars, social previews or a token image.
-`docs/banner.svg` is the README header. Green is `#19c37d` on `#0b0c0f`.
+`docs/banner.svg` is the README header and `docs/x-header.svg` / `.png` the 1500×500 X profile header.
+Green is `#19c37d` on `#0b0c0f`.
 
 ## Layout
 

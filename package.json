@@ -32,6 +32,7 @@
     "check": "svelte-check --tsconfig ./web/tsconfig.json",
     "typecheck": "tsc -p tsconfig.json && bun run check",
     "test": "bun test",
+    "test:integration:devnet": "RUN_DEVNET_INTEGRATION=1 bun test test/integration/launch-buy.devnet.test.ts",
     "deploy": "vite build && wrangler deploy",
     "lookup-table": "bun scripts/lookup-table.ts"
   },

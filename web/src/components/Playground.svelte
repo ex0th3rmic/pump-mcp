@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { runExecute } from "../lib/mcp";
+  import { normalizeToken, runExecute, tokenHint } from "../lib/mcp";
 
   let { code = $bindable(), authOn }: { code: string; authOn: boolean } = $props();
 
@@ -19,6 +19,7 @@
   });
 
   function remember() {
+    token = normalizeToken(token);
     try {
       localStorage.setItem(KEY, token);
     } catch {
@@ -27,8 +28,15 @@
   }
 
   async function run() {
-    if (!token.trim()) {
+    token = normalizeToken(token);
+    if (!token) {
       output = "Enter the bearer token first. It is only sent to this origin.";
+      isError = true;
+      return;
+    }
+    const hint = tokenHint(token);
+    if (hint) {
+      output = hint + " Ask whoever runs this server for its bearer token.";
       isError = true;
       return;
     }
@@ -37,7 +45,7 @@
     output = "";
     isError = false;
     try {
-      const r = await runExecute(token.trim(), code);
+      const r = await runExecute(token, code);
       output = r.text;
       isError = r.isError;
       status = `${r.ms} ms · 1 tool call${r.isError ? " · tool error" : ""}`;

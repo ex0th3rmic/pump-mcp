@@ -17,6 +17,19 @@ interface JsonRpcMessage {
 
 let sessionId: string | null = null;
 
+/** Accepts what people actually paste: the bare token, "Bearer <token>", quotes, angle brackets, whitespace. */
+export function normalizeToken(raw: string): string {
+  return raw.trim().replace(/^bearer\s+/i, "").replace(/^["'<]+|[>"']+$/g, "").trim();
+}
+
+/** A hint when the pasted value is clearly some other secret. */
+export function tokenHint(token: string): string | null {
+  if (/^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(token)) return "That looks like a JWT (for example a Pinata key), not this server's bearer token.";
+  if (/^pf_(live|test)_/.test(token)) return "That looks like a pump.fun API key, not this server's bearer token.";
+  if (token.length < 16) return "That is too short to be the bearer token.";
+  return null;
+}
+
 async function rpc(token: string, method: string, params: unknown, id?: number): Promise<JsonRpcMessage["result"] | null> {
   const headers: Record<string, string> = {
     "content-type": "application/json",
@@ -28,7 +41,7 @@ async function rpc(token: string, method: string, params: unknown, id?: number):
   const res = await fetch("/mcp", { method: "POST", headers, body: JSON.stringify(body) });
   sessionId = res.headers.get("mcp-session-id") || sessionId;
   const text = await res.text();
-  if (res.status === 401) throw new Error("The server rejected that token (401). Check it and try again.");
+  if (res.status === 401) throw new Error("The server rejected that token (401). Paste only the token the operator gave you, without the word Bearer. If you run the server, it is the value you set with `wrangler secret put MCP_BEARER_TOKEN`.");
   if (res.status === 503) throw new Error("The server has no MCP_BEARER_TOKEN set yet, so /mcp is off.");
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300)}`);
   if (id === undefined) return null;

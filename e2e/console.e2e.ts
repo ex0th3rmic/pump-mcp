@@ -53,7 +53,7 @@ async function mocks(page: Page, toolResponse?: (code: string) => unknown) {
     ok: true, version: "0.2.0", mode: "community", officialKey: false, rpc: true,
     metadataUpload: false, devBuyInCreate: false, auth: true, cluster: "devnet",
   } }));
-  await page.route("**/api/showcase", (route) => route.fulfill({ status: 404, json: {} }));
+  await page.route("**/api/showcase", (route) => route.fulfill({ json: curve(MINT, 0.64).curve }));
   await page.route("**/openapi.json", (route) => route.fulfill({ json: { paths: {
     "/curve/{mint}": { get: { summary: "Read bonding curve", tags: ["chain"], security: [] } },
     "/trade": { post: { summary: "Build unsigned trade", tags: ["trading"], requestBody: { content: {} } } },
@@ -72,8 +72,9 @@ async function mocks(page: Page, toolResponse?: (code: string) => unknown) {
 }
 
 async function unlock(page: Page) {
+  if (await page.getByLabel("Bearer token").count() === 0) await page.getByRole("button", { name: "Operator unlock", exact: true }).click();
   await page.getByLabel("Bearer token").fill(TOKEN);
-  await page.getByRole("button", { name: "Unlock console" }).click();
+  await page.getByRole("button", { name: "Unlock operator mode" }).click();
   await expect(page.getByLabel("Bearer token")).toHaveCount(0);
 }
 
@@ -111,17 +112,36 @@ async function mockWallet(page: Page, address: string) {
   }, { address });
 }
 
-test("opens the console directly, unlocks with a session token, and locks", async ({ page }) => {
+test("opens a public demo, then unlocks and locks operator mode", async ({ page }) => {
   await mocks(page);
   await page.goto("/app/coins");
-  await expect(page.getByRole("heading", { name: "Connect to this deployment." })).toBeVisible();
+  await expect(page.getByText("Explore Pump MCP—no token needed.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Explore the live showcase." })).toBeVisible();
+  await expect(page.getByLabel("Bearer token")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Trade this coin" })).toBeVisible();
   await unlock(page);
   await expect(page.getByRole("heading", { name: "Inspect a bonding curve." })).toBeVisible();
   const storage = await page.evaluate(() => ({ local: localStorage.getItem("pump-mcp-token"), session: sessionStorage.getItem("pump-mcp-session-token") }));
   expect(storage).toEqual({ local: null, session: TOKEN });
   await page.getByRole("button", { name: "Lock session" }).click();
-  await expect(page.getByLabel("Bearer token")).toBeVisible();
+  await expect(page.getByText("Explore Pump MCP—no token needed.")).toBeVisible();
+  await expect(page.getByLabel("Bearer token")).toHaveCount(0);
   expect(await page.evaluate(() => sessionStorage.getItem("pump-mcp-session-token"))).toBeNull();
+});
+
+test("runs sample playground and workflow demos with zero MCP requests", async ({ page }) => {
+  let mcpRequests = 0;
+  page.on("request", (request) => { if (new URL(request.url()).pathname === "/mcp") mcpRequests++; });
+  await mocks(page);
+  await page.goto("/app/playground");
+  await page.getByRole("button", { name: "Show sample result" }).click();
+  await expect(page.getByText("sample result · no network calls")).toBeVisible();
+  await expect(page.locator("pre.out")).toContainText('"sample": true');
+  await page.locator('nav a[href="/app/trade"]').click();
+  await expect(page.getByRole("button", { name: "Operator unlock required to build" })).toBeDisabled();
+  await page.locator('nav a[href="/app/launch"]').click();
+  await expect(page.getByRole("button", { name: "Operator unlock required to pin and launch" })).toBeDisabled();
+  expect(mcpRequests).toBe(0);
 });
 
 test("compares coins in one call and records safe activity metadata", async ({ page }) => {
@@ -129,7 +149,7 @@ test("compares coins in one call and records safe activity metadata", async ({ p
   await page.goto("/app/coins");
   await unlock(page);
   await page.getByLabel("Mint addresses").fill(`${MINT}\n${MINT_TWO}`);
-  await page.getByRole("button", { name: "Read curves" }).click();
+  await page.getByRole("button", { name: /Read curves|Refresh curves/ }).click();
   await expect(page.getByText("2 coins · one tool call")).toBeVisible();
   await expect(page.getByText("75%")).toBeVisible();
   await page.locator('nav a[href="/app/activity"]').click();
@@ -142,7 +162,7 @@ test("shows a per-mint error for a single failed curve read", async ({ page }) =
   await page.goto("/app/coins");
   await unlock(page);
   await page.getByLabel("Mint addresses").fill(MINT);
-  await page.getByRole("button", { name: "Read curves" }).click();
+  await page.getByRole("button", { name: /Read curves|Refresh curves/ }).click();
   await expect(page.getByText("Curve read failed for")).toBeVisible();
   await expect(page.getByText("No bonding curve account")).toBeVisible();
 });

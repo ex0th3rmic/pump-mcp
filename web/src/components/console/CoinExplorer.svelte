@@ -6,26 +6,54 @@
   import { mcp } from "../../lib/mcp";
   import { navigate } from "../../lib/router.svelte";
   import { session } from "../../lib/session.svelte";
+  import type { CurveData } from "../../lib/types";
 
   let mints = $state(session.selectedMint);
-  let buyAmount = $state("0.1");
+  let buyAmount = $state(session.token ? "0.1" : "0.5");
   let sellTokens = $state("");
   let rows = $state<CoinComparisonRow[]>([]);
   let running = $state(false);
   let error = $state("");
   let loaded = $state(false);
+  let demoLoaded = $state(false);
+  const demo = $derived(!session.token);
 
   $effect(() => {
-    if (loaded || mints) return;
-    loaded = true;
-    fetch("/api/showcase")
-      .then((response) => response.ok ? response.json() as Promise<{ mint: string }> : null)
-      .then((showcase) => { if (showcase && !mints) mints = showcase.mint; })
-      .catch(() => {});
+    if (!demo && !loaded && !mints) {
+      loaded = true;
+      fetch("/api/showcase")
+        .then((response) => response.ok ? response.json() as Promise<{ mint: string }> : null)
+        .then((showcase) => { if (showcase && !mints) mints = showcase.mint; })
+        .catch(() => {});
+    }
+    if (demo && !demoLoaded) {
+      demoLoaded = true;
+      void inspect();
+    }
   });
 
   async function inspect() {
     error = "";
+    if (demo) {
+      running = true;
+      const started = Date.now();
+      const event = activity.start("Read public showcase");
+      try {
+        const response = await fetch("/api/showcase");
+        if (!response.ok) throw new Error(`Public showcase returned ${response.status}`);
+        const curve = await response.json() as CurveData;
+        mints = curve.mint;
+        buyAmount = "0.5";
+        rows = [{ mint: curve.mint, curve }];
+        activity.finish(event, "success", Date.now() - started, { mint: curve.mint });
+      } catch (cause) {
+        error = cause instanceof Error ? cause.message : String(cause);
+        activity.finish(event, "error", Date.now() - started);
+      } finally {
+        running = false;
+      }
+      return;
+    }
     let parsed: string[];
     let code: string;
     try {
@@ -59,17 +87,17 @@
 
 <section class="search-panel">
   <div class="section-head">
-    <div><span class="kicker">on-chain intelligence</span><h2>Inspect a bonding curve.</h2></div>
-    <span class="source">Solana RPC · live chain state</span>
+    <div><span class="kicker">on-chain intelligence</span><h2>{demo ? "Explore the live showcase." : "Inspect a bonding curve."}</h2></div>
+    <span class="source">{demo ? "public showcase · cached 20s" : "Solana RPC · live chain state"}</span>
   </div>
-  <p class="intro">Paste one mint for a full curve view, or up to eight to compare graduation progress and quotes in one execute call.</p>
+  <p class="intro">{demo ? "This fixed pump.fun coin is live chain data. Operator unlock enables arbitrary mint searches and eight-coin comparisons." : "Paste one mint for a full curve view, or up to eight to compare graduation progress and quotes in one execute call."}</p>
   <form onsubmit={(event) => { event.preventDefault(); void inspect(); }}>
-    <label for="mints">Mint addresses <span>comma, space, or newline separated</span></label>
-    <textarea id="mints" bind:value={mints} rows="3" spellcheck="false" placeholder="9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"></textarea>
+    <label for="mints">Mint addresses <span>{demo ? "fixed public showcase" : "comma, space, or newline separated"}</span></label>
+    <textarea id="mints" bind:value={mints} readonly={demo} rows="3" spellcheck="false" placeholder="9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"></textarea>
     <div class="query-row">
-      <label>Buy quote <span class="input"><input bind:value={buyAmount} inputmode="decimal" aria-label="Buy quote amount" /><i>quote units</i></span></label>
-        <label>Sell quote <span class="input"><input bind:value={sellTokens} inputmode="decimal" aria-label="Sell quote token amount" placeholder="optional" /><i>tokens</i></span></label>
-      <button class="primary" type="submit" disabled={running || session.health?.rpc === false}>{running ? "Reading chain…" : rows.length ? "Refresh curves" : "Read curves"}</button>
+      <label>Buy quote <span class="input"><input bind:value={buyAmount} readonly={demo} inputmode="decimal" aria-label="Buy quote amount" /><i>quote units</i></span></label>
+        <label>Sell quote <span class="input"><input bind:value={sellTokens} readonly={demo} inputmode="decimal" aria-label="Sell quote token amount" placeholder={demo ? "operator only" : "optional"} /><i>tokens</i></span></label>
+      <button class="primary" type="submit" disabled={running || session.health?.rpc === false}>{running ? "Reading chain…" : demo ? "Refresh showcase" : rows.length ? "Refresh curves" : "Read curves"}</button>
     </div>
   </form>
   {#if session.health?.rpc === false}<p class="notice">Set RPC_URL on the Worker to enable curve reads.</p>{/if}

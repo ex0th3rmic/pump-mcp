@@ -86,17 +86,19 @@ describes the server for agents.
 
 ## Web console
 
-Open `/app` on any deployment for the operator console. The static shell is public, but curve reads and every action still require the deployment's `MCP_BEARER_TOKEN`. The token is kept in `sessionStorage` for the current tab session and is cleared by **Lock session**; no account or cookie is created.
+Open `/app` for a **public read-only demo**—no token, signup, or cookie. Visitors get the fixed live `/api/showcase` curve, clearly labeled sample playground results and trade/launch workflows, the OpenAPI inspector, and deployment health. Demo mode makes no `/mcp` requests and cannot pin, build, sign, or broadcast.
 
-- **Playground:** run editable JavaScript through the real Code Mode `execute` tool. Natural-language interaction stays in the connected AI client; the console does not host a separate LLM.
-- **Coins:** inspect one live bonding curve or compare up to eight mints in one call, with per-mint errors, prices, market caps, graduation progress, and quotes.
-- **Trade:** connect a Wallet Standard-compatible Solana wallet, build a buy or sell, simulate the exact transaction, explicitly authorize signing, and submit through the allow-listed RPC.
-- **Launch:** pin artwork and metadata explicitly, or supply an existing HTTPS/IPFS URI, then build and sign a create with an optional developer buy.
+**Operator unlock** enables arbitrary curve reads and real actions with the deployment's `MCP_BEARER_TOKEN`. The token is kept in `sessionStorage` for the current tab session and is cleared by **Lock session**, returning the console to demo mode.
+
+- **Playground:** run curated sample results in demo mode or editable JavaScript through the real Code Mode `execute` tool as an operator. Natural-language interaction stays in the connected AI client.
+- **Coins:** view the live public showcase, or inspect and compare up to eight arbitrary mints as an operator.
+- **Trade:** inspect the read-only workflow, or connect a Wallet Standard-compatible wallet to build, simulate, explicitly sign, and submit real transactions as an operator.
+- **Launch:** inspect the launch lifecycle, or explicitly pin metadata and build a create with an optional developer buy as an operator.
 - **API and activity:** search the merged OpenAPI document, copy execute templates, inspect deployment health, and review in-memory operation history. Tokens, source code, transaction payloads, and full responses are not recorded.
 
-Every transaction follows `preview → simulate → explicit wallet signature → submit → confirmed / failed / expired / not-found`. Changing an input or wallet makes a preview stale. Simulation does not guarantee inclusion, and the console never blindly rebroadcasts an uncertain transaction. Private keys never enter the browser app or Worker.
+Every operator transaction follows `preview → simulate → explicit wallet signature → submit → confirmed / failed / expired / not-found`. Changing an input or wallet makes a preview stale. Simulation does not guarantee inclusion, and the console never blindly rebroadcasts an uncertain transaction. Private keys never enter the browser app or Worker.
 
-![Pump MCP console: coin explorer with a live bonding curve](docs/console.png)
+![Pump MCP public demo: live showcase with read-only banner and separate operator unlock](docs/console-demo.png)
 
 ## Quickstart
 

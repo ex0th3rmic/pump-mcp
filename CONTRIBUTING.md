@@ -52,6 +52,9 @@ bun run test:integration:devnet  # opt-in real devnet launch/buys; never targets
   Do not add automatic rebroadcasting or custodial signing.
 - Bearer tokens stay in `sessionStorage`; activity stays in memory and excludes tokens, code,
   transaction payloads, artwork, and full API responses.
+- Public demo mode must stay read-only and make zero `/mcp` calls. Its only live data comes from the
+  fixed `/api/showcase` endpoint; all other demo results are labeled samples. Never embed an operator
+  token or open trade, metadata, RPC, or official API routes to visitors.
 - No bearer tokens, RPC URLs with keys, wallet secrets, or personal data in commits, issues, or
   screenshots.
 

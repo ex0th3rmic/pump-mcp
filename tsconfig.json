@@ -11,15 +11,20 @@
     "noEmit": true,
     "types": [
       "@cloudflare/workers-types",
-      "bun-types"
+      "bun-types",
+      "svelte"
     ],
     "lib": [
-      "ES2022"
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
     ]
   },
   "include": [
     "src",
     "test",
-    "scripts"
+    "scripts",
+    "e2e",
+    "playwright.config.ts"
   ]
 }

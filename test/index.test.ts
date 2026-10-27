@@ -31,6 +31,31 @@ describe("worker routes", () => {
     expect(JSON.stringify(body)).not.toContain("api-key");
   });
 
+  test("/health reports the configured cluster without exposing the RPC URL", async () => {
+    const mainnet = await (await worker.fetch(new Request("https://x/health"), env({ RPC_URL: "https://rpc.test/?api-key=k" }), ctx)).json() as Record<string, unknown>;
+    expect(mainnet.cluster).toBe("mainnet-beta");
+    const devnet = await (await worker.fetch(new Request("https://x/health"), env({ SOLANA_CLUSTER: "devnet" }), ctx)).json() as Record<string, unknown>;
+    expect(devnet.cluster).toBe("devnet");
+    expect(JSON.stringify(mainnet)).not.toContain("api-key");
+  });
+
+  test("/app and its child routes serve the SPA root while unknown pages stay 404", async () => {
+    const requested: string[] = [];
+    const assets = {
+      fetch: async (req: Request) => {
+        const path = new URL(req.url).pathname;
+        requested.push(path);
+        return new Response(path === "/" ? "app-shell" : `asset:${path}`);
+      },
+    } as unknown as Fetcher;
+    const e = env({ ASSETS: assets });
+    expect(await (await worker.fetch(new Request("https://x/app"), e, ctx)).text()).toBe("app-shell");
+    expect(await (await worker.fetch(new Request("https://x/app/coins"), e, ctx)).text()).toBe("app-shell");
+    expect((await worker.fetch(new Request("https://x/nope"), e, ctx)).status).toBe(404);
+    expect((await worker.fetch(new Request("https://x/api/nope"), e, ctx)).status).toBe(404);
+    expect(requested).toEqual(["/", "/"]);
+  });
+
   test("/openapi.json serves the bundled spec in community mode", async () => {
     const res = await worker.fetch(new Request("https://x/openapi.json"), env(), ctx);
     const spec = (await res.json()) as { openapi: string; paths: Record<string, unknown> };

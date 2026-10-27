@@ -35,16 +35,17 @@ access; every API call comes back to the host Worker, which attaches credentials
 allow-listed upstream. Built with [`@cloudflare/codemode`](https://developers.cloudflare.com/agents/tools/codemode/)
 and `agents/mcp`. MIT licensed. Data from pump.fun.
 
-It ships with a web app at `/` (Svelte 5 + Vite, source in `web/`): a live bonding curve for a showcase
-coin, connect snippets for Claude Code, Codex, Cursor, Kimi, Gemini CLI, OpenCode and Claude Desktop,
-example questions with the code they run, and a token-gated playground that runs the real `execute`
-tool. `/llms.txt` says the same for agents.
+It ships with a web app at `/` and an operator console at `/app` (Svelte 5 + Vite, source in `web/`).
+The landing page has a live showcase curve, client snippets, and runnable examples. The console adds
+coin comparison, Wallet Standard-signed trades and launches, an API inspector, and activity. `/llms.txt`
+describes the server for agents.
 
 <p align="center"><img src="docs/screenshot.png" alt="The web app: GitHub strip, live bonding curve for the showcase coin, the built-on-Code-Mode note, and the connect steps" width="100%"></p>
 
 ## Contents
 
 - [Features](#features)
+- [Web console](#web-console)
 - [Quickstart](#quickstart)
 - [Why Code Mode](#why-code-mode)
 - [What it exposes](#what-it-exposes)
@@ -78,10 +79,24 @@ tool. `/llms.txt` says the same for agents.
   after graduation, and come back unsigned for the caller's wallet. No middleman, no extra fee.
 - **Coin launches from the agent.** `/metadata` pins the image and metadata to IPFS; `/trade` create
   returns a transaction the server's fresh mint has already signed, so only the creator signs.
-- **A web app and an `llms.txt`.** Connect snippets for eight clients, runnable examples, a playground,
-  and a plain-text description for agents.
+- **A web app, operator console, and an `llms.txt`.** Connect snippets, a Code Mode playground, coin
+  comparison, wallet-signed trades and launches, an API inspector, and a plain-text description for agents.
 - **Privacy-respecting usage counts.** Optional Analytics Engine counts of page views and tool calls by
   name. No IPs, tokens or code.
+
+## Web console
+
+Open `/app` on any deployment for the operator console. The static shell is public, but curve reads and every action still require the deployment's `MCP_BEARER_TOKEN`. The token is kept in `sessionStorage` for the current tab session and is cleared by **Lock session**; no account or cookie is created.
+
+- **Playground:** run editable JavaScript through the real Code Mode `execute` tool. Natural-language interaction stays in the connected AI client; the console does not host a separate LLM.
+- **Coins:** inspect one live bonding curve or compare up to eight mints in one call, with per-mint errors, prices, market caps, graduation progress, and quotes.
+- **Trade:** connect a Wallet Standard-compatible Solana wallet, build a buy or sell, simulate the exact transaction, explicitly authorize signing, and submit through the allow-listed RPC.
+- **Launch:** pin artwork and metadata explicitly, or supply an existing HTTPS/IPFS URI, then build and sign a create with an optional developer buy.
+- **API and activity:** search the merged OpenAPI document, copy execute templates, inspect deployment health, and review in-memory operation history. Tokens, source code, transaction payloads, and full responses are not recorded.
+
+Every transaction follows `preview → simulate → explicit wallet signature → submit → confirmed / failed / expired / not-found`. Changing an input or wallet makes a preview stale. Simulation does not guarantee inclusion, and the console never blindly rebroadcasts an uncertain transaction. Private keys never enter the browser app or Worker.
+
+![Pump MCP console: coin explorer with a live bonding curve](docs/console.png)
 
 ## Quickstart
 
@@ -211,6 +226,7 @@ For local development put both in `.dev.vars` (see `.dev.vars.example`).
 | `PUMP_OPENAPI_URL` | var | no | Official spec URL. Set to `""` to serve only the non-official routes. |
 | `PUMP_API_ORIGIN` | var | no | Official API origin; `https://api-devnet.pump.fun/v1` for devnet. |
 | `RPC_ALLOWED_METHODS` | var | no | Comma-separated JSON-RPC methods the sandbox may call through `/rpc`. |
+| `SOLANA_CLUSTER` | var | no | `mainnet-beta` (default) or `devnet`; console label and explorer cluster. Must match `RPC_URL`. |
 | `PUMP_FRONTEND_API_ORIGIN` | var | no | Origin for the unofficial frontend-API routes, or a mirror of it. |
 | `LOADER` | binding | yes | `[[worker_loaders]]`: spawns the sandbox. Needs Workers Paid in production. |
 | `ASSETS` | binding | no | `[assets]`: serves the built web app from `dist/`. |
@@ -222,9 +238,11 @@ For local development put both in `.dev.vars` (see `.dev.vars.example`).
 cp .dev.vars.example .dev.vars        # MCP_BEARER_TOKEN; RPC_URL for chain reads; PUMP_API_KEY when you have one
 bun install
 bun run build                         # builds the web app into ./dist (wrangler serves it)
-bun run dev                           # http://localhost:8790  (web app at /, MCP at /mcp)
+bun run dev                           # http://localhost:8790  (web app at / and /app, MCP at /mcp)
 bun run dev:web                       # optional: Vite with hot reload at :5173, proxying the Worker routes to :8790
-bun test && bun run typecheck         # Worker tests + tsc, then svelte-check
+bun test && bun run typecheck         # Worker/web tests + tsc, then svelte-check
+bunx playwright install chromium
+bun run test:e2e                      # browser console flows with mocked MCP and wallet
 ```
 
 Connect Claude Code:
@@ -413,7 +431,7 @@ The mark is a bonding curve with the coin's position on it. Use it to link to or
 
 ## Project layout
 
-- `src/index.ts` - Worker entry: `/health`, `/openapi.json`, `/llms.txt`, `/api/showcase`, bearer-gated `/mcp`, static assets for the rest. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.
+- `src/index.ts` - Worker entry: `/health`, `/openapi.json`, `/llms.txt`, `/api/showcase`, bearer-gated `/mcp`, landing assets and `/app/*` SPA fallback. Builds `openApiMcpServer` with a `DynamicWorkerExecutor` on `env.LOADER`.
 - `src/official.ts` - fetches/merges the official OpenAPI document and matches its path templates.
 - `src/spec.ts` - the non-official routes as OpenAPI 3.1.
 - `src/upstreams.ts` - host-side `request()` router: route table, validation, secret injection.
@@ -422,8 +440,9 @@ The mark is a bonding curve with the coin's position on it. Use it to link to or
 - `src/metadata.ts` - pins a new coin's image and metadata JSON to IPFS.
 - `scripts/lookup-table.ts` - one-time CLI that creates the operator's lookup table.
 - `src/curve.ts` - bonding-curve PDA derivation (noble ed25519 + sha256) and Borsh decode per the IDL, quotes.
-- `web/` - the web app (Svelte 5). `vite build` writes it to `dist/`, which `[assets]` in `wrangler.toml` serves.
-- `test/` - `bun test`; upstreams are exercised with an injected `fetch`.
+- `web/` - landing page and `/app` console (Svelte 5). `vite build` writes to `dist/`; wallet and transaction helpers live in `web/src/lib/`, views in `web/src/components/console/`.
+- `test/` - `bun test`; Worker and pure web-library tests with injected `fetch` and mock signers.
+- `e2e/` - Playwright browser flows with mocked MCP and a registered mock Wallet Standard wallet.
 - `docs/` - logos, banner, diagrams and screenshots.
 
 ## Caveats

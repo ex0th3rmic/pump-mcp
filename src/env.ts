@@ -19,6 +19,8 @@ export interface Env {
   /** Gateway prefix for the returned IPFS links. Defaults to https://ipfs.io/ipfs/. */
   IPFS_GATEWAY?: string;
   RPC_ALLOWED_METHODS?: string;
+  /** Cluster label used by the web console and explorer links. Must match RPC_URL. */
+  SOLANA_CLUSTER?: "mainnet-beta" | "devnet";
   /** Mint whose bonding curve the web app shows on load via GET /api/showcase (public, cached 20s). */
   SHOWCASE_MINT?: string;
 

@@ -80,7 +80,7 @@ export async function pinMetadata(
   };
 
   const form = new FormData();
-  form.append("file", new Blob([image.bytes], { type: image.type }), `${symbol.toLowerCase()}.${image.ext}`);
+  form.append("file", new Blob([new Uint8Array(image.bytes).buffer], { type: image.type }), `${symbol.toLowerCase()}.${image.ext}`);
   form.append("pinataMetadata", JSON.stringify({ name: `${symbol} image` }));
   const imageCid = await pin(`${PINATA}/pinFileToIPFS`, { method: "POST", headers: auth, body: form });
 

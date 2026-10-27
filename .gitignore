@@ -4,6 +4,8 @@ node_modules
 *.log
 .superpowers
 dist
+test-results
+playwright-report
 # personal secrets, never committed
 .env
 .env.*

@@ -2,6 +2,7 @@
 MCP_BEARER_TOKEN=dev-token-change-me
 # RPC_URL=https://mainnet.helius-rpc.com/?api-key=...   # needed for /curve, /rpc and /trade
 # SHOWCASE_MINT=                 # a live pump.fun mint for the web app's hero curve (also a plain var in wrangler.toml)
+# SOLANA_CLUSTER=mainnet-beta     # or devnet; must match RPC_URL (also a plain var in wrangler.toml)
 # PINATA_JWT=                    # enables POST /metadata (IPFS pinning for new coins)
 # LOOKUP_TABLES=                 # lookup table(s) for create + dev buy; see `bun run lookup-table`
 # PUMP_API_KEY=pf_live_...        # from https://developers.pump.fun once your organisation is approved

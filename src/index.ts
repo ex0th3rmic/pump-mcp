@@ -145,6 +145,7 @@ export function createHandler(deps: HandlerDeps = {}) {
         metadataUpload: Boolean(env.PINATA_JWT),
         devBuyInCreate: Boolean(env.LOOKUP_TABLES && env.LOOKUP_TABLES.trim()),
         auth: Boolean(env.MCP_BEARER_TOKEN),
+        cluster: env.SOLANA_CLUSTER === "devnet" ? "devnet" : "mainnet-beta",
       });
     }
 
@@ -178,9 +179,13 @@ export function createHandler(deps: HandlerDeps = {}) {
     }
 
     if (url.pathname !== "/mcp") {
-      if (env.ASSETS && (request.method === "GET" || request.method === "HEAD")) {
-        if (request.method === "GET" && !/\.[a-z0-9]+$/i.test(url.pathname)) count(env, "page", url.pathname);
-        return env.ASSETS.fetch(request);
+      const appPage = url.pathname === "/app" || url.pathname.startsWith("/app/");
+      const publicPage = url.pathname === "/" || appPage;
+      const staticAsset = /\.[a-z0-9]+$/i.test(url.pathname);
+      if (env.ASSETS && (request.method === "GET" || request.method === "HEAD") && (publicPage || staticAsset)) {
+        if (request.method === "GET" && !staticAsset) count(env, "page", url.pathname);
+        const assetRequest = appPage ? new Request(new URL("/", url.origin), request) : request;
+        return env.ASSETS.fetch(assetRequest);
       }
       return json({ error: "NOT_FOUND" }, 404);
     }

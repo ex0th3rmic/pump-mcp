@@ -42,6 +42,8 @@ IPFS_GATEWAY = "https://ipfs.io/ipfs/"
 SHOWCASE_MINT = "GPieo9s4rz6ungQnsqyiUrznqDypMgrNXmFSDM2vpump"
 # JSON-RPC methods sandbox code may call through POST /rpc (comma separated).
 RPC_ALLOWED_METHODS = "getAccountInfo,getBalance,getTokenAccountBalance,getTokenAccountsByOwner,getTokenLargestAccounts,getTokenSupply,getLatestBlockhash,getSignaturesForAddress,getTransaction,getMultipleAccounts,simulateTransaction,sendTransaction,getSignatureStatuses"
+# Cluster shown by the web console and used for explorer links. Must match RPC_URL.
+SOLANA_CLUSTER = "mainnet-beta"
 
 # Optional usage counts (page views, MCP calls by tool name). Query with SQL in the dashboard or API;
 # see "Usage stats" in the README. Remove this block to record nothing.

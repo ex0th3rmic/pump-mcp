@@ -1,34 +1,22 @@
 <script lang="ts">
-  import { normalizeToken, runExecute, tokenHint } from "../lib/mcp";
+  import { mcp, tokenHint } from "../lib/mcp";
+  import { session } from "../lib/session.svelte";
 
-  let { code = $bindable(), authOn }: { code: string; authOn: boolean } = $props();
+  let { code = $bindable(), authOn, showToken = true }: { code: string; authOn: boolean; showToken?: boolean } = $props();
 
-  const KEY = "pump-mcp-token";
-  let token = $state("");
+  let draft = $state(session.token);
   let running = $state(false);
   let status = $state("");
   let output = $state("");
   let isError = $state(false);
-
-  $effect(() => {
-    try {
-      token = localStorage.getItem(KEY) ?? "";
-    } catch {
-      /* storage blocked */
-    }
-  });
+  let copied = $state(false);
 
   function remember() {
-    token = normalizeToken(token);
-    try {
-      localStorage.setItem(KEY, token);
-    } catch {
-      /* storage blocked */
-    }
+    session.setToken(draft);
   }
 
   async function run() {
-    token = normalizeToken(token);
+    const token = session.setToken(showToken ? draft : session.token);
     if (!token) {
       output = "Enter the bearer token first. It is only sent to this origin.";
       isError = true;
@@ -45,70 +33,60 @@
     output = "";
     isError = false;
     try {
-      const r = await runExecute(token, code);
-      output = r.text;
-      isError = r.isError;
-      status = `${r.ms} ms · 1 tool call${r.isError ? " · tool error" : ""}`;
-    } catch (e) {
-      output = e instanceof Error ? e.message : String(e);
+      const result = await mcp.execute(session.token, code);
+      output = result.text;
+      isError = result.isError;
+      status = `${result.ms} ms · 1 tool call${result.isError ? " · tool error" : ""}`;
+    } catch (error) {
+      output = error instanceof Error ? error.message : String(error);
       isError = true;
       status = "failed";
     } finally {
       running = false;
     }
   }
+
+  async function copyOutput() {
+    await navigator.clipboard.writeText(output);
+    copied = true;
+    setTimeout(() => (copied = false), 1200);
+  }
 </script>
 
 <div class="try">
-  <input type="password" bind:value={token} onchange={remember} placeholder="bearer token · stored in this browser only" autocomplete="off" spellcheck="false" aria-label="Bearer token" />
-  <textarea bind:value={code} spellcheck="false" aria-label="execute body" rows="9"></textarea>
+  {#if showToken}
+    <input type="password" bind:value={draft} onchange={remember} placeholder="bearer token · this tab session only" autocomplete="off" spellcheck="false" aria-label="Bearer token" />
+  {/if}
+  <div class="editor-label"><span>execute body</span><span>JavaScript · sandboxed Code Mode</span></div>
+  <textarea bind:value={code} spellcheck="false" aria-label="execute body" rows="14"></textarea>
   <div class="row">
-    <button class="btn" onclick={run} disabled={running || !authOn}>{running ? "running…" : "Run"}</button>
+    <button class="btn" onclick={run} disabled={running || !authOn}>{running ? "running…" : "Run execute"}</button>
     <span class="meta">{status || (authOn ? "runs the real execute tool against this server" : "/mcp is off until the server has a bearer token")}</span>
   </div>
   {#if output}
+    <div class="output-head"><span>result</span><button onclick={copyOutput}>{copied ? "copied" : "copy"}</button></div>
     <pre class="out" class:err={isError}>{output}</pre>
   {/if}
 </div>
 
 <style>
   .try { background: var(--s1); border: 1px solid var(--b); border-radius: 8px; padding: 14px; display: grid; gap: 10px; }
-  input, textarea {
-    background: var(--bg);
-    border: 1px solid var(--b);
-    color: var(--t);
-    border-radius: 6px;
-    padding: 9px 11px;
-    font-size: 13px;
-    width: 100%;
-    font-family: var(--mono);
-    line-height: 1.5;
-  }
-  textarea { resize: vertical; min-height: 120px; }
+  input, textarea { background: var(--bg); border: 1px solid var(--b); color: var(--t); border-radius: 6px; padding: 10px 12px; font-size: 13px; width: 100%; box-sizing: border-box; font-family: var(--mono); line-height: 1.55; }
+  textarea { resize: vertical; min-height: 260px; tab-size: 2; }
   input:focus, textarea:focus { outline: none; border-color: var(--t3); }
+  .editor-label, .output-head { display: flex; justify-content: space-between; align-items: center; color: var(--t3); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+  .output-head { margin-top: 4px; }
+  .output-head button { color: var(--t3); padding: 0; font: inherit; text-transform: none; }
+  .output-head button:hover { color: var(--t); }
   .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   .btn { background: var(--ac); color: var(--ac-ink); font-weight: 600; border-radius: 6px; padding: 9px 16px; font-size: 13px; }
   .btn:hover:not(:disabled) { filter: brightness(1.08); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .meta { font-family: var(--mono); font-size: 12px; color: var(--t3); }
-  .out {
-    margin: 0;
-    font-size: 12px;
-    color: var(--t);
-    background: var(--bg);
-    border-radius: 6px;
-    padding: 10px 12px;
-    border: 1px solid var(--b);
-    line-height: 1.5;
-    max-height: 420px;
-    overflow: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
+  .meta { font-family: var(--mono); font-size: 11px; color: var(--t3); }
+  .out { margin: 0; font-size: 12px; color: var(--t); background: var(--bg); border-radius: 6px; padding: 12px; border: 1px solid var(--b); line-height: 1.5; max-height: 520px; overflow: auto; white-space: pre-wrap; word-break: break-word; }
   .out.err { color: var(--err); }
   @media (max-width: 760px) {
-    input, textarea { font-size: 16px; } /* keeps iOS from zooming on focus */
-    .btn { padding: 12px 18px; font-size: 15px; width: 100%; text-align: center; }
-    .row { flex-direction: column; align-items: stretch; }
+    input, textarea { font-size: 16px; }
+    .btn { padding: 12px 18px; font-size: 15px; }
   }
 </style>

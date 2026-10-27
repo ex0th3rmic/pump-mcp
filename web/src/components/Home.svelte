@@ -32,7 +32,7 @@
         if (j && typeof j.stargazers_count === "number") stars = j.stargazers_count;
       })
       .catch(() => {});
-    fetch("/api/showcase")
+    fetch("/api/showcase", { cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) throw new Error(String(r.status));
         showcase = (await r.json()) as Showcase;

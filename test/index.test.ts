@@ -119,6 +119,23 @@ describe("worker routes", () => {
     expect(JSON.stringify(body)).not.toContain("api-key");
   });
 
+  test("/api/showcase cache hits keep a 20s browser lifetime, not the zone's long default", async () => {
+    const g = globalThis as { caches?: unknown };
+    const previous = g.caches;
+    const cached = new Response(JSON.stringify({ mint: GRADUATED_MINT, asOf: "2026-01-01T00:00:00.000Z" }), {
+      headers: { "content-type": "application/json", "cache-control": "public, max-age=14400" },
+    });
+    g.caches = { default: { match: async () => cached, put: async () => {} } };
+    try {
+      const handler = createHandler({ fetchImpl: async () => { throw new Error("a cache hit must not reach the RPC"); } });
+      const res = await handler.fetch(new Request("https://x/api/showcase"), env({ RPC_URL: "https://rpc.test", SHOWCASE_MINT: GRADUATED_MINT }), ctx);
+      expect(res.headers.get("cache-control")).toBe("public, max-age=20");
+      expect(((await res.json()) as { asOf: string }).asOf).toBe("2026-01-01T00:00:00.000Z");
+    } finally {
+      g.caches = previous;
+    }
+  });
+
   test("usage: a page view and a tools/call are counted in Analytics Engine without the token or body", async () => {
     const points: Array<{ blobs?: string[]; doubles?: number[]; indexes?: string[] }> = [];
     const analytics = { writeDataPoint: (p: { blobs?: string[]; doubles?: number[]; indexes?: string[] }) => points.push(p) } as unknown as AnalyticsEngineDataset;

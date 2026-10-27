@@ -37,7 +37,7 @@
   $effect(() => {
     if (!demo && !loaded && !mints) {
       loaded = true;
-      fetch("/api/showcase")
+      fetch("/api/showcase", { cache: "no-store" })
         .then((response) => response.ok ? response.json() as Promise<{ mint: string }> : null)
         .then((showcase) => { if (showcase && !mints) mints = showcase.mint; })
         .catch(() => {});
@@ -53,7 +53,7 @@
     const started = Date.now();
     const event = manual ? activity.start("Read public showcase") : null;
     try {
-      const response = await fetch("/api/showcase");
+      const response = await fetch("/api/showcase", { cache: "no-store" });
       if (!response.ok) throw new Error(`Public showcase returned ${response.status}`);
       const curve = await response.json() as CurveData;
       mints = curve.mint;
@@ -281,6 +281,7 @@
   .of { color: var(--t3); }
   .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 16px; border: 1px solid var(--b); border-radius: 7px; overflow: hidden; background: var(--b); }
   .facts:empty { display: none; }
+  .facts div:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .facts div { display: grid; gap: 5px; padding: 12px 14px; background: var(--s1); min-width: 0; }
   .facts span { color: var(--t3); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
   .facts b { color: var(--t); font: 500 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

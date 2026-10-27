@@ -4,7 +4,7 @@
   let mint = $state("Loading showcase mint…");
   onMount(async () => {
     try {
-      const response = await fetch("/api/showcase");
+      const response = await fetch("/api/showcase", { cache: "no-store" });
       if (response.ok) mint = (await response.json() as { mint: string }).mint;
     } catch {
       mint = "Showcase unavailable";

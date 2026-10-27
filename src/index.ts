@@ -162,7 +162,12 @@ export function createHandler(deps: HandlerDeps = {}) {
       const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
       const key = new Request(`${url.origin}/api/showcase`);
       const hit = await cache?.match(key);
-      if (hit) return hit;
+      // Cached copies come back carrying the zone's browser TTL (hours), not ours; restore the 20s lifetime.
+      if (hit) {
+        const fresh = new Response(hit.body, hit);
+        fresh.headers.set("cache-control", "public, max-age=20");
+        return fresh;
+      }
       try {
         const curve = await handleRequest({ method: "GET", path: `/curve/${mint}`, query: { buyAmount: 0.5 } }, env, { fetchImpl: deps.fetchImpl });
         // asOf survives the edge cache, so clients can show the chain read's real age, not the fetch time.

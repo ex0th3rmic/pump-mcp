@@ -13,6 +13,9 @@ export interface Health {
 
 export interface CurveData extends Showcase {
   curve: string;
+  /** Bonding curve account address, as /curve returns it. */
+  bondingCurve?: string;
+  creatorFeeBps?: number;
   creator: string;
   tradesOn: "pump" | "pump-amm" | string;
   note?: string;
@@ -69,5 +72,11 @@ export interface Showcase {
   /** Decimal string from the Worker (bigint-safe), e.g. "30.000000000". */
   initialVirtualQuote: string | number | null;
   isMayhemMode: boolean;
-  reserves: { realQuote: string | number | null; realTokens?: string | number | null };
+  reserves: {
+    realQuote: string | number | null;
+    realTokens?: string | number | null;
+    virtualQuote?: string | number | null;
+    virtualTokens?: string | number | null;
+    totalSupply?: string | number | null;
+  };
 }

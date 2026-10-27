@@ -19,7 +19,9 @@ function curve(mint: string, progress: number) {
       marketCapInQuote: 42,
       initialVirtualQuote: "30",
       isMayhemMode: false,
-      reserves: { realQuote: "12.5" },
+      reserves: { realQuote: "12.5", realTokens: "500000000", virtualQuote: "42.5", virtualTokens: "780000000", totalSupply: "1000000000" },
+      bondingCurve: "6ZL7AWEfcWkLjgGo8jTWVG1mSgWfoWeRcdFyzRdfPgUS",
+      creatorFeeBps: 5,
       tradesOn: "pump",
       buyQuote: { tokensOut: "123456", quoteIn: 0.1 },
     },
@@ -142,6 +144,9 @@ test("shows the public showcase as live, linked chain data", async ({ page }) =>
   await expect(page.getByLabel("Mint addresses")).toHaveCount(0);
   await expect(page.getByText("12.5 / 85 SOL")).toBeVisible();
   await expect(page.getByText("0.1 SOL → 123.5k tokens")).toBeVisible();
+  await expect(page.getByText("500.00M")).toBeVisible();
+  await expect(page.getByText("0.05%")).toBeVisible();
+  await expect(page.getByRole("link", { name: "6ZL7…PgUS ↗" })).toHaveAttribute("href", "https://solscan.io/account/6ZL7AWEfcWkLjgGo8jTWVG1mSgWfoWeRcdFyzRdfPgUS?cluster=devnet");
   await expect(page.getByRole("link", { name: "pump.fun ↗" })).toHaveCount(0); // the mocked deployment is devnet
   await expect(page.getByRole("link", { name: "Solscan ↗" })).toHaveAttribute("href", `https://solscan.io/token/${MINT}?cluster=devnet`);
   const before = showcaseReads;

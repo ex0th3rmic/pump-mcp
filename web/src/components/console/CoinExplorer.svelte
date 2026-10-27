@@ -160,6 +160,8 @@
   {@const target = plotCurve(coin.graduationProgress, coin.initialVirtualQuote).quoteAtGraduation}
   {@const raised = Number(coin.reserves?.realQuote)}
   {@const quoteIn = coin.buyQuote?.quoteIn ?? coin.buyQuote?.solIn}
+  {@const r = coin.reserves}
+  {@const curveAccount = coin.bondingCurve ?? coin.curve}
   <div class="single-grid">
     <section class="panel chart-panel">
       <Curve showcase={coin} state="live" />
@@ -169,6 +171,23 @@
           <button onclick={() => void copyMint(coin.mint)} aria-live="polite">{copied ? "copied ✓" : "copy mint"}</button>
           {#each explorerLinks(coin.mint, cluster) as link}<a href={link.href} target="_blank" rel="noopener noreferrer">{link.label} ↗</a>{/each}
         </span>
+      </div>
+      <div class="facts" aria-label="Curve reserves">
+        {#if !coin.complete && r?.realTokens != null}
+          <div><span>Tokens left on curve</span><b>{fmtQuote(Number(r.realTokens), "amount")}</b></div>
+        {/if}
+        {#if r?.virtualQuote != null && r?.virtualTokens != null}
+          <div><span>Virtual reserves</span><b>{fmtQuote(Number(r.virtualQuote), "amount")} {coin.quote.symbol} · {fmtQuote(Number(r.virtualTokens), "amount")}</b></div>
+        {/if}
+        {#if r?.totalSupply != null}
+          <div><span>Total supply</span><b>{fmtQuote(Number(r.totalSupply), "amount")}</b></div>
+        {/if}
+        {#if coin.creatorFeeBps != null}
+          <div><span>Creator fee</span><b>{(coin.creatorFeeBps / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}%</b></div>
+        {/if}
+        {#if curveAccount && curveAccount.length > 30}
+          <div><span>Curve account</span><b><a href={accountUrl(curveAccount, cluster)} target="_blank" rel="noopener noreferrer" title={curveAccount}>{shortMint(curveAccount)} ↗</a></b></div>
+        {/if}
       </div>
     </section>
     <section class="panel stats-panel">
@@ -260,6 +279,13 @@
   .coin-address a:hover, .text-button:hover, dd a:hover { text-decoration: underline; }
   dd a { color: var(--ac); text-decoration: none; }
   .of { color: var(--t3); }
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; margin-top: 16px; border: 1px solid var(--b); border-radius: 7px; overflow: hidden; background: var(--b); }
+  .facts:empty { display: none; }
+  .facts div { display: grid; gap: 5px; padding: 12px 14px; background: var(--s1); min-width: 0; }
+  .facts span { color: var(--t3); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .06em; }
+  .facts b { color: var(--t); font: 500 12px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .facts a { color: var(--ac); text-decoration: none; }
+  .facts a:hover { text-decoration: underline; }
   .panel-title b.graduated { color: var(--ac); }
   .panel-title { padding-bottom: 14px; border-bottom: 1px solid var(--b); text-transform: uppercase; letter-spacing: .06em; }
   .panel-title b { color: var(--t2); font-weight: 500; }

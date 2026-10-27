@@ -86,10 +86,11 @@ describes the server for agents.
 
 ## Web console
 
-Open `/app` for a **public read-only demo**—no token, signup, or cookie. Visitors get the fixed live `/api/showcase` curve, clearly labeled sample playground results and trade/launch workflows, the OpenAPI inspector, and deployment health. Demo mode makes no `/mcp` requests and cannot pin, build, sign, or broadcast.
+Open `/app` for a **public read-only demo**—no token, signup, or cookie. Visitors get plain-English Help with diagrams, the fixed live `/api/showcase` curve, clearly labeled sample playground results and trade/launch workflows, the OpenAPI inspector, and deployment health. Demo mode makes no `/mcp` requests and cannot pin, build, sign, or broadcast.
 
 **Operator unlock** enables arbitrary curve reads and real actions with the deployment's `MCP_BEARER_TOKEN`. The token is kept in `sessionStorage` for the current tab session and is cleared by **Lock session**, returning the console to demo mode.
 
+- **Help:** learn what Pump MCP does, which mode to use, what tokens and wallets mean, and how bonding curves and transactions work through plain-English explanations and accessible diagrams at `/app/help`.
 - **Playground:** run curated sample results in demo mode or editable JavaScript through the real Code Mode `execute` tool as an operator. Natural-language interaction stays in the connected AI client.
 - **Coins:** view the live public showcase, or inspect and compare up to eight arbitrary mints as an operator.
 - **Trade:** inspect the read-only workflow, or connect a Wallet Standard-compatible wallet to build, simulate, explicitly sign, and submit real transactions as an operator.

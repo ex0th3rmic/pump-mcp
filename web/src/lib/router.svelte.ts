@@ -1,4 +1,4 @@
-export const consoleViews = ["playground", "coins", "trade", "launch", "api", "activity"] as const;
+export const consoleViews = ["playground", "coins", "trade", "launch", "api", "activity", "help"] as const;
 export type ConsoleView = (typeof consoleViews)[number];
 
 export const route = $state({ path: window.location.pathname });

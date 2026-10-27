@@ -144,6 +144,23 @@ test("runs sample playground and workflow demos with zero MCP requests", async (
   expect(mcpRequests).toBe(0);
 });
 
+test("explains the app publicly with plain-language help and diagrams", async ({ page }) => {
+  let mcpRequests = 0;
+  page.on("request", (request) => { if (new URL(request.url()).pathname === "/mcp") mcpRequests++; });
+  await mocks(page);
+  await page.goto("/app/help");
+  await expect(page.getByRole("heading", { name: "New here? Start with this." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Which mode am I using?" })).toBeVisible();
+  await expect(page.getByText("Most people should use the demo.")).toBeVisible();
+  await expect(page.getByRole("img", { name: /AI assistant asks Pump MCP/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /Transaction steps: preview/ })).toBeVisible();
+  await page.getByRole("button", { name: "Explore a live coin" }).click();
+  await expect(page.getByRole("heading", { name: "Explore the live showcase." })).toBeVisible();
+  await page.getByRole("link", { name: "How it works" }).click();
+  await expect(page.getByRole("heading", { name: "New here? Start with this." })).toBeVisible();
+  expect(mcpRequests).toBe(0);
+});
+
 test("compares coins in one call and records safe activity metadata", async ({ page }) => {
   await mocks(page, () => [curve(MINT, 0.42), curve(MINT_TWO, 0.75)]);
   await page.goto("/app/coins");

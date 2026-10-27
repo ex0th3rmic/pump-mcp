@@ -5,6 +5,7 @@
   import CoinExplorer from "./CoinExplorer.svelte";
   import DemoLaunch from "./DemoLaunch.svelte";
   import DemoTrade from "./DemoTrade.svelte";
+  import Help from "./Help.svelte";
   import LaunchWizard from "./LaunchWizard.svelte";
   import TradeBuilder from "./TradeBuilder.svelte";
   import WalletButton from "./WalletButton.svelte";
@@ -22,6 +23,7 @@
     { id: "launch", label: "Launch", index: "04" },
     { id: "api", label: "API", index: "05" },
     { id: "activity", label: "Activity", index: "06" },
+    { id: "help", label: "Help", index: "07" },
   ] as const;
 
   let draft = $state("");
@@ -105,7 +107,7 @@
     {#if !session.token}
       <section class="demo-banner">
         <div><b>Explore Pump MCP—no token needed.</b><span>Live public showcase data and clearly labeled sample workflows.</span></div>
-        <span>read only</span>
+        <span><a href="/app/help" onclick={(event) => { event.preventDefault(); navigate("/app/help"); }}>How it works</a> · read only</span>
       </section>
       {#if operatorOpen}
         <section class="unlock">
@@ -134,6 +136,8 @@
       {#if session.token}<TradeBuilder />{:else}<DemoTrade />{/if}
     {:else if view === "launch"}
       {#if session.token}<LaunchWizard />{:else}<DemoLaunch />{/if}
+    {:else if view === "help"}
+      <Help />
     {:else if view === "api"}
       <ApiInspector />
     {:else}

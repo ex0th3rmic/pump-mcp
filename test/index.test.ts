@@ -114,6 +114,7 @@ describe("worker routes", () => {
     expect(body.mint).toBe(GRADUATED_MINT);
     expect(body.complete).toBe(true);
     expect(body.graduationProgress).toBe(1);
+    expect(Math.abs(Date.parse(body.asOf as string) - Date.now())).toBeLessThan(5_000);
     expect(calls).toEqual(["https://rpc.test/?api-key=k"]);
     expect(JSON.stringify(body)).not.toContain("api-key");
   });

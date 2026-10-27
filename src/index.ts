@@ -165,7 +165,8 @@ export function createHandler(deps: HandlerDeps = {}) {
       if (hit) return hit;
       try {
         const curve = await handleRequest({ method: "GET", path: `/curve/${mint}`, query: { buyAmount: 0.5 } }, env, { fetchImpl: deps.fetchImpl });
-        const res = json(curve, 200, { "cache-control": "public, max-age=20" });
+        // asOf survives the edge cache, so clients can show the chain read's real age, not the fetch time.
+        const res = json({ ...(curve as Record<string, unknown>), asOf: new Date().toISOString() }, 200, { "cache-control": "public, max-age=20" });
         if (cache) ctx.waitUntil(cache.put(key, res.clone()));
         return res;
       } catch (e) {

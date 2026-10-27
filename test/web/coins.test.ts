@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { curveQueryCode, parseMints } from "../../web/src/lib/coins";
+import { accountUrl, curveQueryCode, explorerLinks, fmtAge, parseMints } from "../../web/src/lib/coins";
 
 const MINT = "9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump";
 
@@ -18,5 +18,22 @@ describe("coin explorer helpers", () => {
     expect(code).toContain(MINT);
     expect(() => curveQueryCode([MINT], "-1")).toThrow("positive number");
     expect(() => curveQueryCode([MINT], "", "nope")).toThrow("positive number");
+  });
+
+  test("links mainnet coins to Solscan and pump.fun, devnet coins to Solscan only", () => {
+    expect(explorerLinks(MINT)).toEqual([
+      { label: "Solscan", href: `https://solscan.io/token/${MINT}` },
+      { label: "pump.fun", href: `https://pump.fun/coin/${MINT}` },
+    ]);
+    expect(explorerLinks(MINT, "devnet")).toEqual([{ label: "Solscan", href: `https://solscan.io/token/${MINT}?cluster=devnet` }]);
+    expect(accountUrl("abc", "devnet")).toBe("https://solscan.io/account/abc?cluster=devnet");
+  });
+
+  test("formats read age in coarse, readable steps", () => {
+    expect(fmtAge(1_000)).toBe("just now");
+    expect(fmtAge(Number.NaN)).toBe("just now");
+    expect(fmtAge(12_400)).toBe("12s ago");
+    expect(fmtAge(4 * 60_000 + 5_000)).toBe("4m ago");
+    expect(fmtAge(2 * 3_600_000)).toBe("2h ago");
   });
 });

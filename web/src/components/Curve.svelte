@@ -44,7 +44,7 @@
       {#if showcase?.complete}
         trades on PumpSwap now
       {:else if showcase}
-        {fmtQuote(showcase.priceInQuote, "price")} {sym} · mcap {fmtQuote(showcase.marketCapInQuote, "amount")}
+        {fmtQuote(showcase.priceInQuote, "price")} {sym} · mcap {fmtQuote(showcase.marketCapInQuote, "amount")} {sym}
       {:else if state === "loading"}
         reading the chain…
       {:else}

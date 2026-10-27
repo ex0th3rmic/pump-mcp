@@ -19,9 +19,13 @@ export interface CurveData extends Showcase {
   buyQuote?: {
     tokensOut?: string;
     quoteIn?: number | string;
+    /** SOL-quoted curves report the input as solIn. */
+    solIn?: number | string;
     fee?: string | number;
   } | null;
   sellQuote?: Record<string, string | number | null> | null;
+  /** /api/showcase only: when the Worker read this from chain (ISO time; survives the 20s edge cache). */
+  asOf?: string;
 }
 
 export interface TradeQuote {
@@ -65,5 +69,5 @@ export interface Showcase {
   /** Decimal string from the Worker (bigint-safe), e.g. "30.000000000". */
   initialVirtualQuote: string | number | null;
   isMayhemMode: boolean;
-  reserves: { realQuote: string | number | null };
+  reserves: { realQuote: string | number | null; realTokens?: string | number | null };
 }

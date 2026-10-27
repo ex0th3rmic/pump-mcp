@@ -28,9 +28,19 @@
 
   let draft = $state("");
   let unlockError = $state("");
-  let operatorOpen = $state(true);
+  let tokenInput = $state<HTMLInputElement | null>(null);
   let code = $state(codeFor(examples.find((example) => example.id === "mode")!, null));
   const view = $derived(viewFromPath(route.path) ?? "coins");
+
+  // Focus the token field whenever the panel opens, so "Operator unlock" is one click then paste.
+  $effect(() => {
+    if (session.unlockOpen && tokenInput) tokenInput.focus();
+  });
+
+  function closeUnlock() {
+    session.unlockOpen = false;
+    unlockError = "";
+  }
 
   $effect(() => {
     if (!viewFromPath(route.path) && route.path !== "/app" && route.path !== "/app/") {
@@ -48,7 +58,7 @@
     try {
       await session.unlock(draft);
       draft = "";
-      operatorOpen = false;
+      session.unlockOpen = false;
     } catch (error) {
       unlockError = error instanceof Error ? error.message : String(error);
     }
@@ -61,6 +71,8 @@
     unlockError = "";
   }
 </script>
+
+<svelte:window onkeydown={(event) => { if (event.key === "Escape" && session.unlockOpen) closeUnlock(); }} />
 
 <div class="console">
   <aside class="sidebar">
@@ -99,7 +111,7 @@
           <span class="session"><i></i>MCP session</span><WalletButton />
         {:else}
           <span class="demo-badge">read-only demo</span>
-          <button class="operator-button" onclick={() => (operatorOpen = !operatorOpen)}>Operator unlock</button>
+          <button class="operator-button" aria-expanded={session.unlockOpen} aria-controls="operator-unlock" onclick={() => (session.unlockOpen ? closeUnlock() : (session.unlockOpen = true))}>Operator unlock</button>
         {/if}
       </div>
     </header>
@@ -109,14 +121,14 @@
         <div><b>Explore Pump MCP—no token needed.</b><span>Live public showcase data and clearly labeled sample workflows.</span></div>
         <span><a href="/app/help" onclick={(event) => { event.preventDefault(); navigate("/app/help"); }}>How it works</a> · read only</span>
       </section>
-      {#if operatorOpen}
-        <section class="unlock">
-          <div class="unlock-head"><span class="eyebrow">operator access</span><button onclick={() => (operatorOpen = false)}>Close</button></div>
+      {#if session.unlockOpen}
+        <section class="unlock" id="operator-unlock">
+          <div class="unlock-head"><span class="eyebrow">operator access</span><button onclick={closeUnlock}>Close <kbd>esc</kbd></button></div>
           <h2>Unlock live operations.</h2>
           <p>Visitors can keep exploring the demo. Operators can enter the deployment-issued MCP bearer token to enable arbitrary curve reads, real execution, wallet signing, and launches.</p>
           <form onsubmit={(event) => { event.preventDefault(); void unlock(); }}>
             <label for="console-token">Bearer token</label>
-            <input id="console-token" type="password" bind:value={draft} autocomplete="off" spellcheck="false" placeholder="MCP_BEARER_TOKEN" />
+            <input id="console-token" type="password" bind:this={tokenInput} bind:value={draft} autocomplete="off" spellcheck="false" placeholder="MCP_BEARER_TOKEN" />
             <button class="primary" disabled={session.connecting || session.health?.auth === false}>
               {session.connecting ? "Connecting…" : "Unlock operator mode"}
             </button>
@@ -183,6 +195,8 @@
   .unlock { margin-bottom: 14px; padding: 24px; border: 1px solid var(--b2); border-radius: 10px; background: var(--s1); }
   .unlock-head { display: flex; justify-content: space-between; align-items: center; }
   .unlock-head button { padding: 0; color: var(--t3); font: 11px var(--mono); }
+  .unlock-head button:hover { color: var(--t); }
+  kbd { margin-left: 4px; padding: 1px 4px; border: 1px solid var(--b2); border-radius: 3px; font: 9px var(--mono); }
   .unlock h2 { margin: 8px 0 10px; font-size: 24px; letter-spacing: -.03em; }
   .unlock p { max-width: 80ch; color: var(--t2); line-height: 1.6; font-size: 13px; }
   form { display: grid; gap: 10px; margin-top: 20px; max-width: 560px; }

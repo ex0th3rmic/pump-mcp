@@ -53,7 +53,7 @@ async function mocks(page: Page, toolResponse?: (code: string) => unknown) {
     ok: true, version: "0.2.0", mode: "community", officialKey: false, rpc: true,
     metadataUpload: false, devBuyInCreate: false, auth: true, cluster: "devnet",
   } }));
-  await page.route("**/api/showcase", (route) => route.fulfill({ json: curve(MINT, 0.64).curve }));
+  await page.route("**/api/showcase", (route) => route.fulfill({ json: { ...curve(MINT, 0.64).curve, asOf: new Date(Date.now() - 12_000).toISOString() } }));
   await page.route("**/openapi.json", (route) => route.fulfill({ json: { paths: {
     "/curve/{mint}": { get: { summary: "Read bonding curve", tags: ["chain"], security: [] } },
     "/trade": { post: { summary: "Build unsigned trade", tags: ["trading"], requestBody: { content: {} } } },
@@ -117,8 +117,12 @@ test("opens a public demo, then unlocks and locks operator mode", async ({ page 
   await page.goto("/app/coins");
   await expect(page.getByText("Explore Pump MCP—no token needed.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Explore the live showcase." })).toBeVisible();
-  await expect(page.getByLabel("Bearer token")).toBeVisible();
+  await expect(page.getByLabel("Bearer token")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Trade this coin" })).toBeVisible();
+  await page.getByRole("button", { name: "Operator unlock", exact: true }).click();
+  await expect(page.getByLabel("Bearer token")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(page.getByLabel("Bearer token")).toHaveCount(0);
   await unlock(page);
   await expect(page.getByRole("heading", { name: "Inspect a bonding curve." })).toBeVisible();
   const storage = await page.evaluate(() => ({ local: localStorage.getItem("pump-mcp-token"), session: sessionStorage.getItem("pump-mcp-session-token") }));
@@ -127,6 +131,24 @@ test("opens a public demo, then unlocks and locks operator mode", async ({ page 
   await expect(page.getByText("Explore Pump MCP—no token needed.")).toBeVisible();
   await expect(page.getByLabel("Bearer token")).toHaveCount(0);
   expect(await page.evaluate(() => sessionStorage.getItem("pump-mcp-session-token"))).toBeNull();
+});
+
+test("shows the public showcase as live, linked chain data", async ({ page }) => {
+  let showcaseReads = 0;
+  page.on("request", (request) => { if (new URL(request.url()).pathname === "/api/showcase") showcaseReads++; });
+  await mocks(page);
+  await page.goto("/app/coins");
+  await expect(page.getByText(/live · 1\ds ago/)).toBeVisible();
+  await expect(page.getByLabel("Mint addresses")).toHaveCount(0);
+  await expect(page.getByText("12.5 / 85 SOL")).toBeVisible();
+  await expect(page.getByText("0.1 SOL → 123.5k tokens")).toBeVisible();
+  await expect(page.getByRole("link", { name: "pump.fun ↗" })).toHaveCount(0); // the mocked deployment is devnet
+  await expect(page.getByRole("link", { name: "Solscan ↗" })).toHaveAttribute("href", `https://solscan.io/token/${MINT}?cluster=devnet`);
+  const before = showcaseReads;
+  await page.getByRole("button", { name: "Refresh now" }).click();
+  await expect.poll(() => showcaseReads).toBeGreaterThan(before);
+  await page.getByRole("button", { name: "Search any coin →" }).click();
+  await expect(page.getByLabel("Bearer token")).toBeFocused();
 });
 
 test("runs sample playground and workflow demos with zero MCP requests", async ({ page }) => {

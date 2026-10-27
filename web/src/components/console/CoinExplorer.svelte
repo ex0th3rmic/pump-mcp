@@ -1,8 +1,8 @@
 <script lang="ts">
   import Curve from "../Curve.svelte";
   import { activity } from "../../lib/activity.svelte";
-  import { curveQueryCode, parseMints, type CoinComparisonRow } from "../../lib/coins";
-  import { fmtQuote, shortMint } from "../../lib/curve";
+  import { accountUrl, curveQueryCode, explorerLinks, fmtAge, parseMints, type CoinComparisonRow } from "../../lib/coins";
+  import { fmtQuote, plotCurve, shortMint } from "../../lib/curve";
   import { mcp } from "../../lib/mcp";
   import { navigate } from "../../lib/router.svelte";
   import { session } from "../../lib/session.svelte";
@@ -16,7 +16,23 @@
   let error = $state("");
   let loaded = $state(false);
   let demoLoaded = $state(false);
+  let readAt = $state<number | null>(null);
+  let now = $state(Date.now());
+  let copied = $state(false);
   const demo = $derived(!session.token);
+  const cluster = $derived(session.health?.cluster ?? "mainnet-beta");
+  const quoteSymbol = $derived(rows[0]?.curve?.quote.symbol ?? "SOL");
+  const SHOWCASE_REFRESH_MS = 20_000; // matches the Worker's edge cache, so faster polling would only re-read the cache
+
+  // A 1s clock for the "updated 12s ago" label, and a background refresh of the public showcase while the tab is
+  // visible. Background refreshes skip the activity log and the busy state so they never flicker or spam the log.
+  $effect(() => {
+    const clock = setInterval(() => (now = Date.now()), 1_000);
+    const poll = demo
+      ? setInterval(() => { if (document.visibilityState === "visible" && !running) void readShowcase(false); }, SHOWCASE_REFRESH_MS)
+      : undefined;
+    return () => { clearInterval(clock); if (poll) clearInterval(poll); };
+  });
 
   $effect(() => {
     if (!demo && !loaded && !mints) {
@@ -32,28 +48,48 @@
     }
   });
 
+  async function readShowcase(manual: boolean) {
+    if (manual) { running = true; error = ""; }
+    const started = Date.now();
+    const event = manual ? activity.start("Read public showcase") : null;
+    try {
+      const response = await fetch("/api/showcase");
+      if (!response.ok) throw new Error(`Public showcase returned ${response.status}`);
+      const curve = await response.json() as CurveData;
+      mints = curve.mint;
+      buyAmount = "0.5";
+      rows = [{ mint: curve.mint, curve }];
+      const asOf = curve.asOf ? Date.parse(curve.asOf) : Number.NaN;
+      readAt = Number.isFinite(asOf) ? asOf : Date.now();
+      error = "";
+      if (event) activity.finish(event, "success", Date.now() - started, { mint: curve.mint });
+    } catch (cause) {
+      // A failed background refresh keeps the last good data on screen; only manual reads surface the error.
+      if (manual) error = cause instanceof Error ? cause.message : String(cause);
+      if (event) activity.finish(event, "error", Date.now() - started);
+    } finally {
+      if (manual) running = false;
+    }
+  }
+
+  async function copyMint(mint: string) {
+    try {
+      await navigator.clipboard.writeText(mint);
+      copied = true;
+      setTimeout(() => (copied = false), 1_500);
+    } catch {
+      // Clipboard can be blocked; the address stays selectable on the page.
+    }
+  }
+
+  function openUnlock() {
+    session.unlockOpen = true;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   async function inspect() {
     error = "";
-    if (demo) {
-      running = true;
-      const started = Date.now();
-      const event = activity.start("Read public showcase");
-      try {
-        const response = await fetch("/api/showcase");
-        if (!response.ok) throw new Error(`Public showcase returned ${response.status}`);
-        const curve = await response.json() as CurveData;
-        mints = curve.mint;
-        buyAmount = "0.5";
-        rows = [{ mint: curve.mint, curve }];
-        activity.finish(event, "success", Date.now() - started, { mint: curve.mint });
-      } catch (cause) {
-        error = cause instanceof Error ? cause.message : String(cause);
-        activity.finish(event, "error", Date.now() - started);
-      } finally {
-        running = false;
-      }
-      return;
-    }
+    if (demo) return readShowcase(true);
     let parsed: string[];
     let code: string;
     try {
@@ -70,6 +106,7 @@
       const result = await mcp.execute<CoinComparisonRow[]>(session.token, code);
       if (result.isError || !Array.isArray(result.data)) throw new Error(result.text || "The curve query returned no structured data.");
       rows = result.data;
+      readAt = Date.now();
       activity.finish(event, "success", Date.now() - started);
     } catch (cause) {
       error = cause instanceof Error ? cause.message : String(cause);
@@ -88,37 +125,66 @@
 <section class="search-panel">
   <div class="section-head">
     <div><span class="kicker">on-chain intelligence</span><h2>{demo ? "Explore the live showcase." : "Inspect a bonding curve."}</h2></div>
-    <span class="source">{demo ? "public showcase · cached 20s" : "Solana RPC · live chain state"}</span>
+    {#if readAt}
+      <span class="freshness" title={new Date(readAt).toLocaleString()}><i class:stale={now - readAt > 90_000}></i>{demo ? "live" : "read"} · {fmtAge(now - readAt)}</span>
+    {:else}
+      <span class="source">{demo ? "public showcase" : "Solana RPC · live chain state"}</span>
+    {/if}
   </div>
-  <p class="intro">{demo ? "This fixed pump.fun coin is live chain data. Operator unlock enables arbitrary mint searches and eight-coin comparisons." : "Paste one mint for a full curve view, or up to eight to compare graduation progress and quotes in one execute call."}</p>
-  <form onsubmit={(event) => { event.preventDefault(); void inspect(); }}>
-    <label for="mints">Mint addresses <span>{demo ? "fixed public showcase" : "comma, space, or newline separated"}</span></label>
-    <textarea id="mints" bind:value={mints} readonly={demo} rows="3" spellcheck="false" placeholder="9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"></textarea>
-    <div class="query-row">
-      <label>Buy quote <span class="input"><input bind:value={buyAmount} readonly={demo} inputmode="decimal" aria-label="Buy quote amount" /><i>quote units</i></span></label>
-        <label>Sell quote <span class="input"><input bind:value={sellTokens} readonly={demo} inputmode="decimal" aria-label="Sell quote token amount" placeholder={demo ? "operator only" : "optional"} /><i>tokens</i></span></label>
-      <button class="primary" type="submit" disabled={running || session.health?.rpc === false}>{running ? "Reading chain…" : demo ? "Refresh showcase" : rows.length ? "Refresh curves" : "Read curves"}</button>
+  {#if demo}
+    <div class="demo-strip">
+      <p>One pump.fun coin, read straight from Solana and refreshed every 20 seconds while this tab is open. No token needed.</p>
+      <div class="strip-actions">
+        <button class="ghost" onclick={() => void inspect()} disabled={running || session.health?.rpc === false}>{running ? "Reading chain…" : "Refresh now"}</button>
+        <button class="text-button" onclick={openUnlock}>Search any coin →</button>
+      </div>
     </div>
-  </form>
+  {:else}
+    <p class="intro">Paste one mint for a full curve view, or up to eight to compare graduation progress and quotes in one execute call.</p>
+    <form onsubmit={(event) => { event.preventDefault(); void inspect(); }}>
+      <label for="mints">Mint addresses <span>comma, space, or newline separated</span></label>
+      <textarea id="mints" bind:value={mints} rows="3" spellcheck="false" placeholder="9BB6NFEcjBCtnNLFko2FqVQBq8HHM13kCyYcdQbgpump"></textarea>
+      <div class="query-row">
+        <label>Buy quote <span class="input"><input bind:value={buyAmount} inputmode="decimal" aria-label="Buy quote amount" /><i>{quoteSymbol}</i></span></label>
+        <label>Sell quote <span class="input"><input bind:value={sellTokens} inputmode="decimal" aria-label="Sell quote token amount" placeholder="optional" /><i>tokens</i></span></label>
+        <button class="primary" type="submit" disabled={running || session.health?.rpc === false}>{running ? "Reading chain…" : rows.length ? "Refresh curves" : "Read curves"}</button>
+      </div>
+    </form>
+  {/if}
   {#if session.health?.rpc === false}<p class="notice">Set RPC_URL on the Worker to enable curve reads.</p>{/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
 </section>
 
 {#if rows.length === 1 && rows[0]?.curve}
   {@const coin = rows[0].curve}
+  {@const target = plotCurve(coin.graduationProgress, coin.initialVirtualQuote).quoteAtGraduation}
+  {@const raised = Number(coin.reserves?.realQuote)}
+  {@const quoteIn = coin.buyQuote?.quoteIn ?? coin.buyQuote?.solIn}
   <div class="single-grid">
     <section class="panel chart-panel">
       <Curve showcase={coin} state="live" />
-      <div class="coin-address"><span>{coin.mint}</span><button onclick={() => navigator.clipboard.writeText(coin.mint)}>copy mint</button></div>
+      <div class="coin-address">
+        <span title={coin.mint}>{coin.mint}</span>
+        <span class="links">
+          <button onclick={() => void copyMint(coin.mint)} aria-live="polite">{copied ? "copied ✓" : "copy mint"}</button>
+          {#each explorerLinks(coin.mint, cluster) as link}<a href={link.href} target="_blank" rel="noopener noreferrer">{link.label} ↗</a>{/each}
+        </span>
+      </div>
     </section>
     <section class="panel stats-panel">
-      <div class="panel-title"><span>curve state</span><b>{coin.complete ? "Graduated" : "Active"}</b></div>
+      <div class="panel-title"><span>curve state</span><b class:graduated={coin.complete}>{coin.complete ? "Graduated" : "Active"}</b></div>
       <dl>
         <div><dt>Price</dt><dd>{fmtQuote(coin.priceInQuote, "price")} {coin.quote.symbol}</dd></div>
         <div><dt>Market cap</dt><dd>{fmtQuote(coin.marketCapInQuote, "amount")} {coin.quote.symbol}</dd></div>
-        <div><dt>Graduation</dt><dd>{Math.round(coin.graduationProgress * 100)}%</dd></div>
-        <div><dt>Venue</dt><dd>{coin.tradesOn}</dd></div>
-        <div><dt>Buy quote</dt><dd>{coin.buyQuote?.tokensOut ? `${coin.buyQuote.tokensOut} tokens` : "—"}</dd></div>
+        {#if !coin.complete && Number.isFinite(raised)}
+          <div><dt>Raised</dt><dd>{fmtQuote(raised, "amount")} <span class="of">/ {Math.round(target)} {coin.quote.symbol}</span></dd></div>
+        {/if}
+        <div><dt>Graduation</dt><dd>{coin.complete ? "Complete" : `${Math.round(coin.graduationProgress * 100)}%`}</dd></div>
+        <div><dt>Venue</dt><dd>{coin.tradesOn === "pump-amm" ? "PumpSwap" : coin.tradesOn === "pump" ? "Bonding curve" : coin.tradesOn}</dd></div>
+        <div><dt>Buy quote</dt><dd>{#if coin.buyQuote?.tokensOut}{quoteIn ? `${quoteIn} ${coin.quote.symbol} → ` : ""}{fmtQuote(Number(coin.buyQuote.tokensOut), "amount")} tokens{:else}—{/if}</dd></div>
+        {#if coin.creator}
+          <div><dt>Creator</dt><dd><a href={accountUrl(coin.creator, cluster)} target="_blank" rel="noopener noreferrer" title={coin.creator}>{shortMint(coin.creator)} ↗</a></dd></div>
+        {/if}
         <div><dt>Mode</dt><dd>{coin.isMayhemMode ? "Mayhem" : "Standard"}</dd></div>
       </dl>
       {#if coin.note}<p class="notice">{coin.note}</p>{/if}
@@ -158,6 +224,17 @@
   .kicker { color: var(--ac); font: 10px var(--mono); text-transform: uppercase; letter-spacing: .12em; }
   h2 { margin: 6px 0 0; font-size: 22px; letter-spacing: -.025em; }
   .source, .panel-title { color: var(--t3); font: 10px var(--mono); }
+  .freshness { display: inline-flex; align-items: center; gap: 6px; color: var(--t2); font: 10px var(--mono); white-space: nowrap; }
+  .freshness i { width: 6px; height: 6px; border-radius: 50%; background: var(--ac); box-shadow: 0 0 0 0 rgba(25,195,125,.5); animation: pulse 2s infinite; }
+  .freshness i.stale { background: var(--warn); animation: none; }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 6px rgba(25,195,125,0); } 100% { box-shadow: 0 0 0 0 rgba(25,195,125,0); } }
+  @media (prefers-reduced-motion: reduce) { .freshness i { animation: none; } }
+  .demo-strip { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-top: 12px; }
+  .demo-strip p { margin: 0; color: var(--t2); font-size: 13px; line-height: 1.55; max-width: 62ch; }
+  .strip-actions { display: flex; align-items: center; gap: 14px; flex: 0 0 auto; }
+  .ghost { padding: 8px 12px; border: 1px solid var(--b2); border-radius: 6px; background: var(--bg); color: var(--t); font-size: 12px; white-space: nowrap; }
+  .ghost:hover:not(:disabled) { border-color: var(--ac); }
+  .ghost:disabled { opacity: .5; cursor: not-allowed; }
   .intro { color: var(--t2); font-size: 13px; max-width: 70ch; }
   form { display: grid; gap: 12px; margin-top: 18px; }
   label { display: grid; gap: 6px; color: var(--t2); font: 11px var(--mono); }
@@ -176,8 +253,14 @@
   .single-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr); gap: 14px; margin-top: 14px; }
   .chart-panel { min-width: 0; }
   .coin-address { display: flex; justify-content: space-between; gap: 12px; margin-top: 16px; color: var(--t3); font: 10px var(--mono); }
-  .coin-address span { overflow: hidden; text-overflow: ellipsis; }
-  .coin-address button, .text-button { color: var(--ac); padding: 0; font: inherit; white-space: nowrap; }
+  .coin-address > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .links { display: flex; gap: 14px; flex: 0 0 auto; }
+  .coin-address button, .coin-address a, .text-button { color: var(--ac); padding: 0; font: inherit; white-space: nowrap; text-decoration: none; }
+  .text-button { font: 11px var(--mono); }
+  .coin-address a:hover, .text-button:hover, dd a:hover { text-decoration: underline; }
+  dd a { color: var(--ac); text-decoration: none; }
+  .of { color: var(--t3); }
+  .panel-title b.graduated { color: var(--ac); }
   .panel-title { padding-bottom: 14px; border-bottom: 1px solid var(--b); text-transform: uppercase; letter-spacing: .06em; }
   .panel-title b { color: var(--t2); font-weight: 500; }
   dl { margin: 8px 0; }
@@ -202,6 +285,9 @@
     .query-row { grid-template-columns: 1fr; }
     .query-row .primary { width: 100%; }
     .source { display: none; }
+    .demo-strip { flex-direction: column; align-items: stretch; }
+    .strip-actions { justify-content: space-between; }
+    .coin-address { flex-direction: column; gap: 8px; }
     .search-panel, .panel { padding: 15px; }
     input { font-size: 16px; }
   }

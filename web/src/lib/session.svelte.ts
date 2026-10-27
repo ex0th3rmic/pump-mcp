@@ -10,6 +10,8 @@ class SessionState {
   healthError = $state("");
   connecting = $state(false);
   selectedMint = $state("");
+  /** Whether the operator unlock panel is showing. Closed by default so visitors see the demo first. */
+  unlockOpen = $state(typeof window !== "undefined" && window.location.hash === "#unlock");
 
   constructor() {
     try {

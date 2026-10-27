@@ -26,7 +26,7 @@
 
   let draft = $state("");
   let unlockError = $state("");
-  let operatorOpen = $state(false);
+  let operatorOpen = $state(true);
   let code = $state(codeFor(examples.find((example) => example.id === "mode")!, null));
   const view = $derived(viewFromPath(route.path) ?? "coins");
 

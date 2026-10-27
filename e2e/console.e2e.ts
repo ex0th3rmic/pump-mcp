@@ -117,7 +117,7 @@ test("opens a public demo, then unlocks and locks operator mode", async ({ page 
   await page.goto("/app/coins");
   await expect(page.getByText("Explore Pump MCP—no token needed.")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Explore the live showcase." })).toBeVisible();
-  await expect(page.getByLabel("Bearer token")).toHaveCount(0);
+  await expect(page.getByLabel("Bearer token")).toBeVisible();
   await expect(page.getByRole("button", { name: "Trade this coin" })).toBeVisible();
   await unlock(page);
   await expect(page.getByRole("heading", { name: "Inspect a bonding curve." })).toBeVisible();

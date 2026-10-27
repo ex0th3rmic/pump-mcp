@@ -162,11 +162,13 @@ export function createHandler(deps: HandlerDeps = {}) {
       const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
       const key = new Request(`${url.origin}/api/showcase`);
       const hit = await cache?.match(key);
-      // Cached copies come back carrying the zone's browser TTL (hours), not ours; restore the 20s lifetime.
+      // A response marked as a cache hit leaves the edge with the zone's browser TTL (hours), overriding ours.
+      // Rebuild it without the hit markers so the 20s lifetime survives.
       if (hit) {
-        const fresh = new Response(hit.body, hit);
-        fresh.headers.set("cache-control", "public, max-age=20");
-        return fresh;
+        const headers = new Headers(hit.headers);
+        for (const name of ["cf-cache-status", "age", "expires", "last-modified", "etag"]) headers.delete(name);
+        headers.set("cache-control", "public, max-age=20");
+        return new Response(hit.body, { status: hit.status, headers });
       }
       try {
         const curve = await handleRequest({ method: "GET", path: `/curve/${mint}`, query: { buyAmount: 0.5 } }, env, { fetchImpl: deps.fetchImpl });
